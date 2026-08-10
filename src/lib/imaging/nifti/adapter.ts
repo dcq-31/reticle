@@ -66,6 +66,8 @@ function niftiDetailsFor(h: NiftiHeader): Record<string, string> {
 }
 
 export const niftiAdapter: FormatAdapter = {
+  id: "nifti",
+  execution: "worker",
   canLoad(file) {
     return looksNifti(file.name, file.head);
   },

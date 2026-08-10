@@ -1,4 +1,5 @@
 import type { Plane } from "@/store/types";
+import type { ViewerJobStatus } from "@/services/viewerLoadService";
 
 export type ToastKind = "info" | "error";
 
@@ -33,6 +34,8 @@ export interface UiState {
    * as a signal to reset its per-viewport zoom/pan refs.
    */
   resetSeq: number;
+  /** Lifecycle state for the current ingest/background job. */
+  jobStatus: ViewerJobStatus;
 }
 
 export interface UiActions {
@@ -44,6 +47,7 @@ export interface UiActions {
   setDragActive: (active: boolean) => void;
   /** Bump resetSeq — viewports listen to this to clear their zoom/pan. */
   bumpResetSeq: () => void;
+  setJobStatus: (status: ViewerJobStatus) => void;
 }
 
 export type UiSlice = UiState & UiActions;
@@ -60,6 +64,7 @@ export function createUiSlice(set: SetFn): UiSlice {
     status: "No volume loaded",
     dragActive: false,
     resetSeq: 0,
+    jobStatus: "idle",
 
     setHover: (hover) => set({ hover }),
     showToast: (text, kind = "info") => set({ toast: { id: toastSeq++, text, kind } }),
@@ -68,5 +73,6 @@ export function createUiSlice(set: SetFn): UiSlice {
     setStatus: (status) => set({ status }),
     setDragActive: (dragActive) => set({ dragActive }),
     bumpResetSeq: () => set((state) => ({ resetSeq: state.resetSeq + 1 })),
+    setJobStatus: (jobStatus) => set({ jobStatus }),
   };
 }

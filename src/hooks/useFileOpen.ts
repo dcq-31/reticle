@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 
-import { parseFileInWorker } from "@/workers/niftiLoader";
+import { getViewerLoadService } from "@/services/viewerLoadService";
 import { useViewerStore, type Layer } from "@/store";
 
 export type FileOpenKind = "base" | "overlay";
@@ -30,22 +30,34 @@ export function useFileOpen(): FileOpenHandle {
       return;
     }
     store.setLoading(true);
+    store.setJobStatus("loading");
     store.setStatus(`Reading ${file.name}…`);
     try {
-      const volume = await parseFileInWorker(file);
-      if (kind === "base") {
+      const result = await getViewerLoadService().load({ file, kind });
+      if (result.status === "stale" || result.status === "aborted") {
+        store.setJobStatus(result.status);
+        return;
+      }
+      const volume = result.volumes[0]?.volume;
+      if (!volume) {
+        throw new Error(`No volume returned for ${file.name}`);
+      }
+      if (result.kind === "base") {
         store.setBase(volume);
         store.setStatus(volumeStatus(volume));
         store.showToast(`Loaded ${volume.name}`);
       } else {
         store.addOverlay(volume);
+        store.setStatus(volumeStatus(store.base?.volume ?? volume));
         store.showToast(`Added overlay ${volume.name}`);
       }
+      store.setJobStatus("success");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[useFileOpen] failed:", err);
       store.setStatus("Load failed");
       store.showToast(`Could not load: ${msg}`, "error");
+      store.setJobStatus("error");
     } finally {
       store.setLoading(false);
     }

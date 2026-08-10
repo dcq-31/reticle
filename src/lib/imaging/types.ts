@@ -38,6 +38,8 @@ export interface VolumeStats {
   readonly histogram: Uint32Array;
 }
 
+export type VolumeSource = "nifti" | "dicom";
+
 /**
  * Canonical, format-agnostic volume representation consumed by the renderers.
  * Adapters (NIfTI, future DICOM) produce values of this type.
@@ -52,7 +54,7 @@ export interface VolumeStats {
 export interface Volume {
   readonly id: string;
   readonly name: string;
-  readonly source: "nifti" | "dicom";
+  readonly source: VolumeSource;
 
   readonly nx: number;
   readonly ny: number;
@@ -84,12 +86,13 @@ export interface Volume {
 
   /** Format-specific extras intended for the metadata panel. */
   readonly details?: Readonly<Record<string, string>>;
-
-  /** Lazily filled by `computeStats(volume, t)`. */
-  stats?: VolumeStats;
 }
 
 export interface FormatAdapter {
+  /** Stable format id used by the ingest pipeline. */
+  readonly id: VolumeSource;
+  /** Whether this adapter should run through the generic worker path. */
+  readonly execution: "worker" | "main";
   /** Sniff a file to decide whether this adapter can load it. */
   canLoad(file: { readonly name: string; readonly head: Uint8Array }): boolean;
   /** Parse into one or more volumes. */

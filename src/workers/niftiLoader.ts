@@ -2,9 +2,9 @@
 
 import * as Comlink from "comlink";
 
-import type { Volume } from "@/lib/imaging/types";
+import type { Volume, VolumeSource } from "@/lib/imaging/types";
 
-import type { NiftiWorkerApi } from "@/workers/niftiLoader.worker";
+import type { VolumeLoaderWorkerApi } from "@/workers/niftiLoader.worker";
 
 /**
  * Lazily-instantiated singleton Comlink proxy for the NIfTI parsing worker.
@@ -13,15 +13,15 @@ import type { NiftiWorkerApi } from "@/workers/niftiLoader.worker";
  * (no module-graph re-parse on the worker side). The proxy is null until
  * the first `parseFileInWorker` call to defer Worker construction past SSR.
  */
-let proxy: Comlink.Remote<NiftiWorkerApi> | null = null;
+let proxy: Comlink.Remote<VolumeLoaderWorkerApi> | null = null;
 
-function getProxy(): Comlink.Remote<NiftiWorkerApi> {
+function getProxy(): Comlink.Remote<VolumeLoaderWorkerApi> {
   if (proxy) return proxy;
   const worker = new Worker(new URL("./niftiLoader.worker.ts", import.meta.url), {
     type: "module",
-    name: "reticle-nifti-loader",
+    name: "reticle-volume-loader",
   });
-  proxy = Comlink.wrap<NiftiWorkerApi>(worker);
+  proxy = Comlink.wrap<VolumeLoaderWorkerApi>(worker);
   return proxy;
 }
 
@@ -31,8 +31,14 @@ function getProxy(): Comlink.Remote<NiftiWorkerApi> {
  * where the actual decode + stats happen. The returned Volume comes back
  * with its data + histogram buffers transferred zero-copy.
  */
-export async function parseFileInWorker(file: File): Promise<Volume> {
+export async function loadVolumesInWorker(
+  file: File,
+  format: VolumeSource,
+  signal?: AbortSignal,
+): Promise<readonly Volume[]> {
+  signal?.throwIfAborted?.();
   const buffer = await file.arrayBuffer();
+  signal?.throwIfAborted?.();
   const remote = getProxy();
-  return remote.parseAndPrepare(Comlink.transfer(buffer, [buffer]), file.name);
+  return remote.parseVolumes(Comlink.transfer(buffer, [buffer]), file.name, format);
 }
