@@ -1,7 +1,7 @@
 import { Data3DTexture, LinearFilter, RedFormat, UnsignedByteType } from "three";
 
 import { worldOff } from "@/lib/geometry/worldVoxel";
-import type { Volume } from "@/lib/imaging/types";
+import type { Volume, VolumeStats } from "@/lib/imaging/types";
 
 /** Max number of voxels along any axis we let the 3D texture grow to. */
 export const VOLUME_TEXTURE_LIMIT = 256;
@@ -32,11 +32,7 @@ export interface BuiltVolumeTexture {
  * Note: callers must dispose the previous texture (`tex.dispose()`) before
  * replacing it.
  */
-export function buildVolumeTexture(volume: Volume, t = 0): BuiltVolumeTexture {
-  const stats = volume.stats;
-  if (!stats) {
-    throw new Error("buildVolumeTexture: volume.stats not computed yet");
-  }
+export function buildVolumeTexture(volume: Volume, stats: VolumeStats, t = 0): BuiltVolumeTexture {
   const RW = volume.dimsWorld[0];
   const AH = volume.dimsWorld[1];
   const SD = volume.dimsWorld[2];

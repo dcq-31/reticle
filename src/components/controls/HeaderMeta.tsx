@@ -2,10 +2,11 @@
 
 import { PanelGroup } from "@/components/controls/primitives";
 import { fmt } from "@/lib/utils/fmt";
-import { useViewerStore } from "@/store";
+import { useLayerStats, useViewerStore } from "@/store";
 
 export function HeaderMeta(): React.ReactElement {
   const base = useViewerStore((s) => s.base);
+  const stats = useLayerStats(base?.id ?? null);
   if (!base) {
     return (
       <PanelGroup title="Header">
@@ -15,7 +16,6 @@ export function HeaderMeta(): React.ReactElement {
   }
   const v = base.volume;
   const details = v.details ?? {};
-  const stats = v.stats;
 
   const rows: Array<readonly [string, string]> = [
     ["Format", details.Format ?? (v.source === "nifti" ? "NIfTI" : "DICOM")],

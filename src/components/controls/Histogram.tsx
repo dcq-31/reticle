@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import { fmt } from "@/lib/utils/fmt";
-import { useActiveLayer, useViewerStore, type Layer } from "@/store";
+import { useActiveLayer, useActiveLayerStats, useViewerStore, type Layer, type LayerId } from "@/store";
 
 const CANVAS_W = 600;
 const CANVAS_H = 96;
@@ -12,15 +12,15 @@ const EDGE_HIT_PX = 8;
 
 export function Histogram(): React.ReactElement | null {
   const layer = useActiveLayer();
+  const stats = useActiveLayerStats();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Redraw whenever stats or window change.
   useEffect(() => {
-    drawHistogram(canvasRef.current, layer);
-  }, [layer]);
+    drawHistogram(canvasRef.current, layer, stats);
+  }, [layer, stats]);
 
-  if (!layer || !layer.volume.stats) return null;
-  const stats = layer.volume.stats;
+  if (!layer || !stats) return null;
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>): void => {
     const canvas = canvasRef.current;
@@ -34,7 +34,7 @@ export function Histogram(): React.ReactElement | null {
     const mode: HistMode =
       Math.abs(x - xLo) < EDGE_HIT_PX ? "lo" : Math.abs(x - xHi) < EDGE_HIT_PX ? "hi" : "move";
     canvas.dataset.histMode = mode;
-    applyDrag(e, canvas, mode);
+    applyDrag(e, canvas, mode, layer.id);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>): void => {
@@ -42,7 +42,7 @@ export function Histogram(): React.ReactElement | null {
     if (!canvas) return;
     const mode = (canvas.dataset.histMode as HistMode | undefined) ?? null;
     if (!mode) return;
-    applyDrag(e, canvas, mode);
+    applyDrag(e, canvas, mode, layer.id);
   };
 
   const endDrag = (): void => {
@@ -83,18 +83,18 @@ function pickX(e: { clientX: number }, canvas: HTMLCanvasElement): number {
   return offset * (canvas.width / rect.width);
 }
 
-function applyDrag(e: { clientX: number }, canvas: HTMLCanvasElement, mode: HistMode): void {
+function applyDrag(
+  e: { clientX: number },
+  canvas: HTMLCanvasElement,
+  mode: HistMode,
+  layerId: LayerId,
+): void {
   // Read the latest layer from the store at drag time (the layer arg in the
   // closure above is stable, but the layer's display may have moved since).
   const state = useViewerStore.getState();
-  const activeId = state.activeLayerId;
-  const layer = activeId
-    ? state.base?.id === activeId
-      ? state.base
-      : (state.overlays.find((l) => l.id === activeId) ?? state.base)
-    : state.base;
+  const layer = state.document.layers.find((entry) => entry.id === layerId) ?? state.base;
   if (!layer) return;
-  const stats = layer.volume.stats;
+  const stats = state.getStatsForLayer(layer.id);
   if (!stats) return;
   const win = layer.display.win;
   const span = stats.max - stats.min || 1;
@@ -113,7 +113,11 @@ function applyDrag(e: { clientX: number }, canvas: HTMLCanvasElement, mode: Hist
   state.setActiveWindow({ level: (lo + hi) / 2, width: hi - lo });
 }
 
-function drawHistogram(canvas: HTMLCanvasElement | null, layer: Layer | null): void {
+function drawHistogram(
+  canvas: HTMLCanvasElement | null,
+  layer: Layer | null,
+  stats: ReturnType<typeof useActiveLayerStats>,
+): void {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -121,7 +125,6 @@ function drawHistogram(canvas: HTMLCanvasElement | null, layer: Layer | null): v
   const H = canvas.height;
   ctx.clearRect(0, 0, W, H);
   if (!layer) return;
-  const stats = layer.volume.stats;
   if (!stats) return;
   const hist = stats.histogram;
   const NB = hist.length;

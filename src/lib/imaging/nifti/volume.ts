@@ -83,8 +83,8 @@ export function makeVolume(
  * Scan voxels at time-index `t`, computing min/max, 256-bin histogram, and
  * robust 2nd/98th percentile bounds for auto windowing.
  *
- * Pure: returns a new `VolumeStats`. Callers wishing to cache should assign
- * the result to `volume.stats`.
+ * Pure: returns a new `VolumeStats`. Callers wishing to cache should store
+ * the result in a derived-data cache keyed by volume id and time index.
  */
 export function computeStats(vol: Volume, t = 0): VolumeStats {
   const data = vol.data;

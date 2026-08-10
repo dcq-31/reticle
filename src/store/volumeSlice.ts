@@ -1,14 +1,32 @@
-import { computeStats } from "@/lib/imaging/nifti/volume";
-import { buildLUT, type ColormapName } from "@/lib/render/colormap";
+import {
+  ensureVolumeStats,
+  getCachedVolumeStats,
+  makeDerivedVolumeCacheKey,
+  type DerivedVolumeCache,
+} from "@/lib/imaging/derived";
+import { getCachedLut } from "@/lib/render/lutCache";
+import type { ColormapName } from "@/lib/render/colormap";
 
-import type { Crosshair, DisplayProps, Layer, Volume, WindowLevel } from "@/store/types";
+import type {
+  Crosshair,
+  DisplayProps,
+  Layer,
+  LayerId,
+  LayerRole,
+  ViewerDocument,
+  Volume,
+  WindowLevel,
+} from "@/store/types";
 
 export interface VolumeState {
+  document: ViewerDocument;
   base: Layer | null;
   overlays: readonly Layer[];
-  activeLayerId: string | null;
+  activeLayerId: LayerId | null;
   cross: Crosshair;
   crosshairVisible: boolean;
+  derivedCache: DerivedVolumeCache;
+  statsVersion: number;
 }
 
 export type WindowPreset = "auto" | "full" | "robust";
@@ -16,10 +34,10 @@ export type WindowPreset = "auto" | "full" | "robust";
 export interface VolumeActions {
   setBase: (volume: Volume) => void;
   addOverlay: (volume: Volume) => void;
-  removeLayer: (layerId: string) => void;
-  setActiveLayer: (layerId: string) => void;
-  setLayerVisibility: (layerId: string, visible: boolean) => void;
-  setLayerOpacity: (layerId: string, opacity: number) => void;
+  removeLayer: (layerId: LayerId) => void;
+  setActiveLayer: (layerId: LayerId) => void;
+  setLayerVisibility: (layerId: LayerId, visible: boolean) => void;
+  setLayerOpacity: (layerId: LayerId, opacity: number) => void;
   clearVolumes: () => void;
   setCross: (partial: Partial<Crosshair>) => void;
   setCrosshairVisible: (visible: boolean) => void;
@@ -27,65 +45,45 @@ export interface VolumeActions {
   setActiveCmap: (cmap: ColormapName) => void;
   setActiveInvert: (invert: boolean) => void;
   applyWindowPreset: (preset: WindowPreset) => void;
-  /** Re-run computeStats for the base layer at the current time index. */
   refreshStats: () => void;
+  getStatsForVolume: (volumeId: string, timeIndex?: number) => ReturnType<typeof getCachedVolumeStats>;
+  getStatsForLayer: (layerId?: LayerId | null, timeIndex?: number) => ReturnType<typeof getCachedVolumeStats>;
+  getLayerRole: (layerId: LayerId) => LayerRole | null;
 }
 
 export type VolumeSlice = VolumeState & VolumeActions;
 
-/**
- * Selector: the layer the W/L sliders + colormap picker are currently editing.
- * Falls back to the base when `activeLayerId` is stale.
- */
-export function selectActiveLayer(state: VolumeState): Layer | null {
-  if (!state.activeLayerId) return state.base;
-  if (state.base?.id === state.activeLayerId) return state.base;
-  return state.overlays.find((l) => l.id === state.activeLayerId) ?? state.base;
-}
+const EMPTY_DOCUMENT: ViewerDocument = {
+  layers: [],
+  layerRoles: {},
+};
 
-function defaultBaseDisplay(volume: Volume): DisplayProps {
-  // Auto-window from robust percentiles; falls back to full range if no stats.
-  const stats = volume.stats;
-  const lo = stats?.p2 ?? 0;
-  const hi = stats?.p98 ?? 1;
+function defaultBaseDisplay(stats: NonNullable<ReturnType<typeof getCachedVolumeStats>>): DisplayProps {
+  const lo = stats.p2;
+  const hi = stats.p98;
   return {
     visible: true,
     opacity: 1,
     cmap: "gray",
     invert: false,
     win: { level: (lo + hi) / 2, width: Math.max(1e-6, hi - lo) },
-    lut: buildLUT("gray", false),
+    lut: getCachedLut("gray", false),
   };
 }
 
-/**
- * Overlay defaults differ from the base: a heat colormap (visually distinct
- * against the typical gray structural) and 70% opacity so the base shows
- * through.
- */
-function defaultOverlayDisplay(volume: Volume): DisplayProps {
-  const stats = volume.stats;
-  const lo = stats?.p2 ?? 0;
-  const hi = stats?.p98 ?? 1;
+function defaultOverlayDisplay(
+  stats: NonNullable<ReturnType<typeof getCachedVolumeStats>>,
+): DisplayProps {
+  const lo = stats.p2;
+  const hi = stats.p98;
   return {
     visible: true,
     opacity: 0.7,
     cmap: "hot",
     invert: false,
     win: { level: (lo + hi) / 2, width: Math.max(1e-6, hi - lo) },
-    lut: buildLUT("hot", false),
+    lut: getCachedLut("hot", false),
   };
-}
-
-/**
- * Compute stats BEFORE building the display so the default window/level
- * can read robust percentiles. `volume.stats` is the documented mutable
- * cache slot on the Volume interface.
- */
-function makeLayer(volume: Volume, makeDisplay: (volume: Volume) => DisplayProps): Layer {
-  const v = volume as Volume & { stats?: ReturnType<typeof computeStats> };
-  if (!v.stats) v.stats = computeStats(volume, 0);
-  return { id: volume.id, volume, display: makeDisplay(volume) };
 }
 
 function centerCrosshair(volume: Volume): Crosshair {
@@ -109,6 +107,74 @@ const clampToVolume = (cross: Crosshair, base: Layer | null): Crosshair => {
   };
 };
 
+function rebuildCompatLayers(document: ViewerDocument): {
+  readonly base: Layer | null;
+  readonly overlays: readonly Layer[];
+} {
+  const base = document.layers.find((layer) => document.layerRoles[layer.id] === "base") ?? null;
+  return {
+    base,
+    overlays: document.layers.filter((layer) => document.layerRoles[layer.id] === "overlay"),
+  };
+}
+
+function ensureStatsForVolumeState(
+  state: Pick<VolumeState, "derivedCache" | "statsVersion">,
+  volume: Volume,
+  timeIndex: number,
+): {
+  readonly derivedCache: DerivedVolumeCache;
+  readonly stats: NonNullable<ReturnType<typeof getCachedVolumeStats>>;
+  readonly statsVersion: number;
+} {
+  const ensured = ensureVolumeStats(state.derivedCache, volume, timeIndex);
+  return {
+    derivedCache: ensured.cache,
+    stats: ensured.stats,
+    statsVersion: state.statsVersion + (ensured.changed ? 1 : 0),
+  };
+}
+
+function buildLayer(
+  volume: Volume,
+  role: LayerRole,
+  derivedCache: DerivedVolumeCache,
+  statsVersion: number,
+): {
+  readonly layer: Layer;
+  readonly derivedCache: DerivedVolumeCache;
+  readonly statsVersion: number;
+} {
+  const ensured = ensureStatsForVolumeState({ derivedCache, statsVersion }, volume, 0);
+  return {
+    layer: {
+      id: volume.id,
+      volume,
+      display: role === "base" ? defaultBaseDisplay(ensured.stats) : defaultOverlayDisplay(ensured.stats),
+    },
+    derivedCache: ensured.derivedCache,
+    statsVersion: ensured.statsVersion,
+  };
+}
+
+/**
+ * Selector: the layer the W/L sliders + colormap picker are currently editing.
+ * Falls back to the base when `activeLayerId` is stale.
+ */
+export function selectActiveLayer(state: Pick<VolumeState, "activeLayerId" | "base" | "overlays">): Layer | null {
+  if (!state.activeLayerId) return state.base;
+  if (state.base?.id === state.activeLayerId) return state.base;
+  return state.overlays.find((l) => l.id === state.activeLayerId) ?? state.base;
+}
+
+export function selectLayerById(
+  state: Pick<VolumeState, "document">,
+  layerId: LayerId | null | undefined,
+): Layer | null {
+  if (!layerId) return null;
+  return state.document.layers.find((layer) => layer.id === layerId) ?? null;
+}
+
 type SetFn = (
   partial: Partial<VolumeSlice> | ((state: VolumeSlice) => Partial<VolumeSlice>),
 ) => void;
@@ -116,46 +182,76 @@ type GetFn = () => VolumeSlice;
 
 export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
   return {
+    document: EMPTY_DOCUMENT,
     base: null,
     overlays: [],
     activeLayerId: null,
     cross: { r: 0, a: 0, s: 0, t: 0 },
     crosshairVisible: true,
+    derivedCache: { statsByKey: {} },
+    statsVersion: 0,
 
     setBase: (volume) => {
-      const layer = makeLayer(volume, defaultBaseDisplay);
+      const built = buildLayer(volume, "base", get().derivedCache, get().statsVersion);
+      const document: ViewerDocument = {
+        layers: [built.layer],
+        layerRoles: { [built.layer.id]: "base" },
+      };
       set({
-        base: layer,
-        overlays: [],
-        activeLayerId: layer.id,
+        document,
+        ...rebuildCompatLayers(document),
+        activeLayerId: built.layer.id,
         cross: centerCrosshair(volume),
+        derivedCache: built.derivedCache,
+        statsVersion: built.statsVersion,
       });
     },
 
     addOverlay: (volume) => {
-      const layer = makeLayer(volume, defaultOverlayDisplay);
-      set((state) => ({
-        overlays: [...state.overlays, layer],
-        // New overlay becomes active so window/colormap controls target it.
-        activeLayerId: layer.id,
-      }));
+      const state = get();
+      const built = buildLayer(volume, "overlay", state.derivedCache, state.statsVersion);
+      const document: ViewerDocument = {
+        layers: [...state.document.layers, built.layer],
+        layerRoles: {
+          ...state.document.layerRoles,
+          [built.layer.id]: "overlay",
+        },
+      };
+      set({
+        document,
+        ...rebuildCompatLayers(document),
+        activeLayerId: built.layer.id,
+        derivedCache: built.derivedCache,
+        statsVersion: built.statsVersion,
+      });
     },
 
     removeLayer: (layerId) => {
       set((state) => {
         if (state.base?.id === layerId) {
-          // Removing the base wipes everything.
           return {
+            document: EMPTY_DOCUMENT,
             base: null,
             overlays: [],
             activeLayerId: null,
             cross: { r: 0, a: 0, s: 0, t: 0 },
+            derivedCache: { statsByKey: {} },
+            statsVersion: state.statsVersion + 1,
           };
         }
-        const overlays = state.overlays.filter((l) => l.id !== layerId);
+        const document: ViewerDocument = {
+          layers: state.document.layers.filter((layer) => layer.id !== layerId),
+          layerRoles: Object.fromEntries(
+            Object.entries(state.document.layerRoles).filter(([id]) => id !== layerId),
+          ) as ViewerDocument["layerRoles"],
+        };
         const activeLayerId =
           state.activeLayerId === layerId ? (state.base?.id ?? null) : state.activeLayerId;
-        return { overlays, activeLayerId };
+        return {
+          document,
+          ...rebuildCompatLayers(document),
+          activeLayerId,
+        };
       });
     },
 
@@ -172,10 +268,13 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
 
     clearVolumes: () => {
       set({
+        document: EMPTY_DOCUMENT,
         base: null,
         overlays: [],
         activeLayerId: null,
         cross: { r: 0, a: 0, s: 0, t: 0 },
+        derivedCache: { statsByKey: {} },
+        statsVersion: get().statsVersion + 1,
       });
     },
 
@@ -201,7 +300,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
         mutateActiveDisplay(state, (d) => ({
           ...d,
           cmap,
-          lut: buildLUT(cmap, d.invert),
+          lut: getCachedLut(cmap, d.invert),
         })),
       );
     },
@@ -211,7 +310,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
         mutateActiveDisplay(state, (d) => ({
           ...d,
           invert,
-          lut: buildLUT(d.cmap, invert),
+          lut: getCachedLut(d.cmap, invert),
         })),
       );
     },
@@ -219,7 +318,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     applyWindowPreset: (preset) => {
       const active = selectActiveLayer(get());
       if (!active) return;
-      const stats = active.volume.stats;
+      const stats = get().getStatsForLayer(active.id);
       if (!stats) return;
       const next = ((): WindowLevel => {
         if (preset === "full") {
@@ -244,14 +343,38 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     },
 
     refreshStats: () => {
-      const { base, cross } = get();
+      const { base, cross, derivedCache, statsVersion } = get();
       if (!base) return;
-      const fresh = computeStats(base.volume, cross.t);
-      // Mutate the cached slot on the volume object; the new Layer reference
-      // forces subscribers (slice renderer, histogram) to re-read.
-      (base.volume as Volume & { stats?: typeof fresh }).stats = fresh;
-      set({ base: { ...base, volume: base.volume } });
+      const ensured = ensureStatsForVolumeState({ derivedCache, statsVersion }, base.volume, cross.t);
+      if (ensured.statsVersion !== statsVersion) {
+        set({
+          derivedCache: ensured.derivedCache,
+          statsVersion: ensured.statsVersion,
+        });
+      }
     },
+
+    getStatsForVolume: (volumeId, timeIndex = get().cross.t) =>
+      getCachedVolumeStats(get().derivedCache, volumeId, timeIndex),
+
+    getStatsForLayer: (layerId = get().activeLayerId, timeIndex = get().cross.t) => {
+      const layer = selectLayerById(get(), layerId) ?? get().base;
+      if (!layer) return null;
+      const cached = getCachedVolumeStats(get().derivedCache, layer.volume.id, timeIndex);
+      if (cached) return cached;
+      const ensured = ensureStatsForVolumeState(
+        { derivedCache: get().derivedCache, statsVersion: get().statsVersion },
+        layer.volume,
+        timeIndex,
+      );
+      set({
+        derivedCache: ensured.derivedCache,
+        statsVersion: ensured.statsVersion,
+      });
+      return ensured.stats;
+    },
+
+    getLayerRole: (layerId) => get().document.layerRoles[layerId] ?? null,
   };
 }
 
@@ -266,14 +389,30 @@ function mutateActiveDisplay(
 
 function mutateLayerDisplay(
   state: VolumeSlice,
-  layerId: string,
+  layerId: LayerId,
   mut: (d: DisplayProps) => DisplayProps,
 ): Partial<VolumeSlice> {
-  if (state.base && state.base.id === layerId) {
-    return { base: { ...state.base, display: mut(state.base.display) } };
-  }
-  const next = state.overlays.map((l) =>
-    l.id === layerId ? { ...l, display: mut(l.display) } : l,
-  );
-  return { overlays: next };
+  const document: ViewerDocument = {
+    layers: state.document.layers.map((layer) =>
+      layer.id === layerId ? { ...layer, display: mut(layer.display) } : layer,
+    ),
+    layerRoles: state.document.layerRoles,
+  };
+  return {
+    document,
+    ...rebuildCompatLayers(document),
+  };
+}
+
+export function selectLayerStats(
+  state: Pick<VolumeSlice, "statsVersion" | "cross" | "derivedCache" | "base" | "overlays" | "activeLayerId">,
+  layerId?: LayerId | null,
+) {
+  void state.statsVersion;
+  const targetId = layerId ?? state.activeLayerId;
+  const layer =
+    (targetId ? (state.base?.id === targetId ? state.base : state.overlays.find((l) => l.id === targetId)) : null) ??
+    state.base;
+  if (!layer) return null;
+  return state.derivedCache.statsByKey[makeDerivedVolumeCacheKey(layer.volume.id, state.cross.t)] ?? null;
 }

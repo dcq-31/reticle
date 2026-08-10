@@ -3,13 +3,13 @@
 import { Histogram } from "@/components/controls/Histogram";
 import { Chip, Hint, PanelGroup, Row } from "@/components/controls/primitives";
 import { fmt } from "@/lib/utils/fmt";
-import { useActiveLayer, useViewerStore } from "@/store";
+import { useActiveLayer, useActiveLayerStats, useViewerStore } from "@/store";
 
 export function IntensityWindow(): React.ReactElement | null {
   const layer = useActiveLayer();
+  const stats = useActiveLayerStats();
   if (!layer) return null;
   const win = layer.display.win;
-  const stats = layer.volume.stats;
   if (!stats) return null;
   const span = stats.max - stats.min || 1;
 

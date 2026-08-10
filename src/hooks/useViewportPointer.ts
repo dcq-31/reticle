@@ -7,6 +7,7 @@ import { canvasToWorldVoxel, viewLayout, type ViewportState } from "@/lib/render
 import { clamp } from "@/lib/utils/clamp";
 import { keyState } from "@/lib/utils/keyState";
 import { useViewerStore } from "@/store";
+import { selectActiveLayer } from "@/store/volumeSlice";
 
 type Mode = "crosshair" | "window" | "pan" | null;
 
@@ -148,7 +149,8 @@ export function useViewportPointer(
         return;
       }
       if (mode === "window") {
-        const stats = base.volume.stats;
+        const active = selectActiveLayer(state);
+        const stats = active ? state.getStatsForLayer(active.id) : null;
         const span = stats ? stats.max - stats.min || 1 : 1;
         const rect = canvasRect();
         const dw = ((e.clientX - startX) / rect.width) * span * 1.4;
