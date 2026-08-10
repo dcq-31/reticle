@@ -97,8 +97,9 @@ Use or extend the smoke suite when changing user-visible workflows or renderer i
 If you change file loading:
 
 - keep the heavy parsing path off the main thread
-- confirm the adapter registry still selects the intended loader
+- confirm the adapter registry and `ViewerLoadService` still select the intended loader
 - verify both base volume and overlay flows
+- verify stale or superseded loads do not install old results
 - verify status and toast behavior on success and failure
 - keep supported-format claims in the docs aligned with the actual registry
 
@@ -117,7 +118,7 @@ If you change the slice renderer:
 If you change the volume renderer:
 
 - verify WebGL2 fallback behavior still works
-- verify texture rebuilds on timepoint or base-volume change
+- verify texture rebuilds on timepoint, base-volume, and derived-stats change
 - verify LUT, threshold, density, quality, and shade controls
 - verify orbit reset and interaction responsiveness
 

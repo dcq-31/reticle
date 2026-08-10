@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from "react";
 
+import { useVolumeRenderStoreAdapter } from "@/hooks/renderStoreAdapters";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useVolumeRenderer } from "@/hooks/useVolumeRenderer";
 import { useViewerStore } from "@/store";
@@ -15,7 +16,8 @@ const MODE_LABEL: Record<"composite" | "mip" | "iso", string> = {
 export function VolumeView(): React.ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { failed, setCanvasSize } = useVolumeRenderer(canvasRef);
+  const storeAdapter = useVolumeRenderStoreAdapter();
+  const { failed, setCanvasSize } = useVolumeRenderer(canvasRef, storeAdapter);
 
   const onResize = useCallback(
     ({ width, height }: { width: number; height: number }) => {

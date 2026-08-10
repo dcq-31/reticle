@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 
+import type { SliceRenderStoreAdapter } from "@/hooks/renderStoreAdapters";
 import { planeSizes, sliceCoord, type Plane } from "@/lib/geometry/planes";
 import { renderSliceToImageData } from "@/lib/render/slice";
 import { viewLayout, type ViewportState } from "@/lib/render/viewLayout";
 import { FrameScheduler } from "@/lib/utils/raf";
-import { useViewerStore } from "@/store";
 
 export interface SliceRendererHandle {
   /**
@@ -38,6 +38,7 @@ export function useSliceRenderer(
   plane: Plane,
   canvasRef: RefObject<HTMLCanvasElement | null>,
   viewportRef: RefObject<ViewportState>,
+  storeAdapter: SliceRenderStoreAdapter,
 ): SliceRendererHandle {
   const offCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const offCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -52,8 +53,7 @@ export function useSliceRenderer(
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { base, overlays, cross, crosshairVisible, convention, interp } =
-      useViewerStore.getState();
+    const { base, overlays, cross, crosshairVisible, convention, interp } = storeAdapter.getSnapshot();
     const size = sizeRef.current;
 
     ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
@@ -153,7 +153,7 @@ export function useSliceRenderer(
       ctx.fill();
       ctx.globalCompositeOperation = "source-over";
     }
-  }, [plane, canvasRef, viewportRef]);
+  }, [plane, canvasRef, viewportRef, storeAdapter]);
 
   useEffect(() => {
     schedRef.current = new FrameScheduler(render);
@@ -186,49 +186,14 @@ export function useSliceRenderer(
 
   // Subscribe to store changes that affect this plane's offscreen output.
   useEffect(() => {
-    const sliceKey = plane === "axial" ? "s" : plane === "coronal" ? "a" : "r";
-
-    const unsubOff = useViewerStore.subscribe(
-      (state) => ({
-        baseId: state.base?.id,
-        volume: state.base?.volume,
-        win: state.base?.display.win,
-        lut: state.base?.display.lut,
-        sliceCoord: state.cross[sliceKey],
-        t: state.cross.t,
-        convention: state.convention,
-        // Any overlay change (add/remove/reorder/display) → rebuild offscreen.
-        overlays: state.overlays,
-      }),
-      () => requestRender(true),
-      { equalityFn: shallowEq },
-    );
-
-    const unsubCompositor = useViewerStore.subscribe(
-      (state) => ({
-        // crosshair position (non-slice axes) and overlay-only toggles
-        cross: state.cross,
-        crosshairVisible: state.crosshairVisible,
-        interp: state.interp,
-      }),
-      () => requestRender(false),
-      { equalityFn: shallowEq },
-    );
+    const unsubOff = storeAdapter.subscribeOffscreen(() => requestRender(true));
+    const unsubCompositor = storeAdapter.subscribeCompositor(() => requestRender(false));
 
     return () => {
       unsubOff();
       unsubCompositor();
     };
-  }, [plane, requestRender]);
+  }, [requestRender, storeAdapter]);
 
   return useMemo(() => ({ requestRender, setCanvasSize }), [requestRender, setCanvasSize]);
-}
-
-function shallowEq<T extends Record<string, unknown>>(a: T, b: T): boolean {
-  if (a === b) return true;
-  const ka = Object.keys(a);
-  const kb = Object.keys(b);
-  if (ka.length !== kb.length) return false;
-  for (const k of ka) if (a[k] !== b[k]) return false;
-  return true;
 }

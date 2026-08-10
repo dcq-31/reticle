@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useResizeObserver } from "@/hooks/useResizeObserver";
+import { useSliceRenderStoreAdapter } from "@/hooks/renderStoreAdapters";
 import { useSliceRenderer } from "@/hooks/useSliceRenderer";
 import { useViewportPointer } from "@/hooks/useViewportPointer";
 import { planeSizes, sliceCoord, type Plane } from "@/lib/geometry/planes";
@@ -27,8 +28,16 @@ export function SliceView({ plane }: SliceViewProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewportRef = useRef<ViewportState>({ zoom: 1, panX: 0, panY: 0 });
+  const storeAdapter = useSliceRenderStoreAdapter(
+    plane === "axial" ? "s" : plane === "coronal" ? "a" : "r",
+  );
 
-  const { requestRender, setCanvasSize } = useSliceRenderer(plane, canvasRef, viewportRef);
+  const { requestRender, setCanvasSize } = useSliceRenderer(
+    plane,
+    canvasRef,
+    viewportRef,
+    storeAdapter,
+  );
   useViewportPointer(plane, canvasRef, viewportRef, requestRender);
 
   const onResize = useCallback(

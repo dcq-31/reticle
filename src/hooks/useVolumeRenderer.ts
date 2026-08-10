@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import type { VolumeRenderStoreAdapter } from "@/hooks/renderStoreAdapters";
 import {
   BoxGeometry,
   type Data3DTexture,
@@ -29,7 +30,6 @@ import {
 import { buildVolumeTexture } from "@/lib/render/volume3d/texture";
 import { clamp } from "@/lib/utils/clamp";
 import { FrameScheduler } from "@/lib/utils/raf";
-import { useViewerStore } from "@/store";
 
 export interface VolumeRendererHandle {
   /** True when WebGL2 is unavailable; component should render a fallback. */
@@ -59,6 +59,7 @@ const WHEEL_IDLE_MS = 160;
  */
 export function useVolumeRenderer(
   canvasRef: RefObject<HTMLCanvasElement | null>,
+  storeAdapter: VolumeRenderStoreAdapter,
 ): VolumeRendererHandle {
   const [failed, setFailed] = useState(false);
 
@@ -78,19 +79,19 @@ export function useVolumeRenderer(
   const syncDisplay = useCallback(() => {
     const bundle = bundleRef.current;
     if (!bundle) return;
-    const base = useViewerStore.getState().base;
+    const base = storeAdapter.getSnapshot().base;
     if (!base) return;
     bundle.uniforms.uWinLo.value = base.display.win.level - base.display.win.width / 2;
     bundle.uniforms.uWinWidth.value = Math.max(1e-6, base.display.win.width);
     updateLutTexture(bundle.lutTexture, base.display.lut);
     schedRef.current?.request();
-  }, []);
+  }, [storeAdapter]);
 
   /** Push current store vol3d settings into uniforms; ask for a frame. */
   const syncSettings = useCallback(() => {
     const bundle = bundleRef.current;
     if (!bundle) return;
-    const s = useViewerStore.getState();
+    const s = storeAdapter.getSnapshot();
     bundle.uniforms.uMode.value = s.mode === "mip" ? 0 : s.mode === "iso" ? 2 : 1;
     bundle.uniforms.uDensity.value = s.density;
     bundle.uniforms.uThresh.value = s.threshold;
@@ -101,19 +102,18 @@ export function useVolumeRenderer(
       Math.max(48, Math.round(baseAxis * 1.7 * s.quality)),
     );
     schedRef.current?.request();
-  }, []);
+  }, [storeAdapter]);
 
   /** Build a 3D texture for the current base volume at the current time. */
   const rebuildTexture = useCallback(() => {
     const bundle = bundleRef.current;
     if (!bundle) return;
-    const state = useViewerStore.getState();
-    const base = state.base;
-    if (!base) return;
-    if (!base.volume.stats) state.refreshStats();
-    if (!base.volume.stats) return;
+    const snapshot = storeAdapter.getSnapshot();
+    const base = snapshot.base;
+    const stats = snapshot.stats;
+    if (!base || !stats) return;
     if (tex3dRef.current) tex3dRef.current.dispose();
-    const built = buildVolumeTexture(base.volume, state.cross.t);
+    const built = buildVolumeTexture(base.volume, stats, snapshot.timeIndex);
     tex3dRef.current = built.texture;
     dimsRef.current = [built.dims[0], built.dims[1], built.dims[2]];
 
@@ -126,7 +126,7 @@ export function useVolumeRenderer(
 
     syncDisplay();
     syncSettings();
-  }, [syncDisplay, syncSettings]);
+  }, [storeAdapter, syncDisplay, syncSettings]);
 
   /** Render one frame; lowers step count if mid-interaction, then restores. */
   const renderFrame = useCallback(() => {
@@ -169,7 +169,7 @@ export function useVolumeRenderer(
       return;
     }
 
-    const initialLut = useViewerStore.getState().base?.display.lut ?? buildLUT("gray", false);
+    const initialLut = storeAdapter.getSnapshot().base?.display.lut ?? buildLUT("gray", false);
     let bundle: VolumeMaterialBundle | null;
     let renderer: WebGLRenderer;
     try {
@@ -215,7 +215,7 @@ export function useVolumeRenderer(
       cameraRef.current = null;
       schedRef.current = null;
     };
-  }, [canvasRef, rebuildTexture, renderFrame, syncDisplay, syncSettings]);
+  }, [canvasRef, rebuildTexture, renderFrame, storeAdapter, syncDisplay, syncSettings]);
 
   // Pointer + wheel orbit interaction.
   useEffect(() => {
@@ -305,54 +305,24 @@ export function useVolumeRenderer(
 
   // Store subscriptions: each fires a targeted re-sync.
   useEffect(() => {
-    const unsubVolume = useViewerStore.subscribe(
-      (state) => state.base?.volume,
-      () => {
+    const unsubVolume = storeAdapter.subscribeVolume(() => {
         rebuildTexture();
         resetOrbit(orbitRef.current);
         schedRef.current?.request();
-      },
-    );
-    const unsubTime = useViewerStore.subscribe(
-      (state) => state.cross.t,
-      () => {
-        rebuildTexture();
-        schedRef.current?.request();
-      },
-    );
-    const unsubDisplay = useViewerStore.subscribe(
-      (state) => state.base?.display,
-      () => syncDisplay(),
-    );
-    const unsubSettings = useViewerStore.subscribe(
-      (state) => ({
-        m: state.mode,
-        th: state.threshold,
-        de: state.density,
-        q: state.quality,
-        sh: state.shade,
-      }),
-      () => syncSettings(),
-      {
-        equalityFn: (a, b) =>
-          a.m === b.m && a.th === b.th && a.de === b.de && a.q === b.q && a.sh === b.sh,
-      },
-    );
-    const unsubReset = useViewerStore.subscribe(
-      (state) => state.vol3dResetSeq,
-      () => {
-        resetOrbit(orbitRef.current);
-        schedRef.current?.request();
-      },
-    );
+      });
+    const unsubDisplay = storeAdapter.subscribeDisplay(() => syncDisplay());
+    const unsubSettings = storeAdapter.subscribeSettings(() => syncSettings());
+    const unsubReset = storeAdapter.subscribeReset(() => {
+      resetOrbit(orbitRef.current);
+      schedRef.current?.request();
+    });
     return () => {
       unsubVolume();
-      unsubTime();
       unsubDisplay();
       unsubSettings();
       unsubReset();
     };
-  }, [rebuildTexture, syncDisplay, syncSettings]);
+  }, [rebuildTexture, storeAdapter, syncDisplay, syncSettings]);
 
   const setCanvasSize = useCallback<VolumeRendererHandle["setCanvasSize"]>((width, height) => {
     const renderer = rendererRef.current;
