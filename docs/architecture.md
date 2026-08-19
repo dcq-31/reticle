@@ -26,6 +26,8 @@ The viewer surface is composed from a few top-level pieces:
 - **Drop overlay**: drag-and-drop receiver
 - **Toast**: transient success/error feedback
 
+The control panel is deliberately absent from the single and maximized layouts. Maximizing a plane is a distraction-free full-bleed view; display controls remain reachable by returning to the grid or 3D layout. This is intentional, not an oversight.
+
 The top-level viewer also installs global keyboard shortcuts and initializes the demo data on first mount.
 
 ## State Model
@@ -51,7 +53,8 @@ This slice also handles:
 - clamping crosshair movement to the current volume bounds
 - choosing the active layer for display controls
 - applying window presets
-- ensuring derived stats for the current timepoint without mutating the `Volume`
+- warming derived stats for every layer when the timepoint changes, without mutating the `Volume`
+- evicting cached stats for volumes that are replaced or removed
 
 ### Layout slice
 
@@ -168,5 +171,6 @@ When changing this codebase, keep these existing design choices intact unless th
 - parsing should stay off the main thread for real file loads
 - React should not own per-frame canvas or WebGL draw state
 - `Volume` objects should stay immutable; caches belong to derived-data services or store state
+- store reads must stay pure: `getStatsForLayer` and the render snapshots never call `set`. The derived-stats cache is warmed by the actions that change what is displayed (`setBase`, `addOverlay`, `setCross`), so a read can safely happen inside a store subscriber without re-entrancy
 - documentation and UI text should distinguish current support from future ideas
 - the current terminology is stable: base volume, overlay, active layer, crosshair, convention, interpolation, volume mode

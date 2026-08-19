@@ -44,9 +44,8 @@ The main directories are:
 - `src/lib/geometry/`: plane mapping, voxel/world math, overlay resampling
 - `src/lib/render/`: 2D slice rendering, colormaps, layout math, 3D rendering support
 - `src/workers/`: worker entrypoints and Comlink-facing APIs
-- `tests/`: unit tests for imaging, geometry, and rendering helpers
+- `tests/`: unit tests for imaging, geometry, store, and rendering helpers
 - `e2e/`: Playwright smoke coverage
-- `reference/`: standalone reference material and prior implementation artifacts
 
 ## Local Workflow
 

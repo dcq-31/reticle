@@ -17,7 +17,7 @@ This repository is currently a focused viewer prototype, not a general PACS work
 
 ## Current Boundaries
 
-- NIfTI is the only supported imaging format
+- NIfTI is the only supported imaging format, and only as a single self-contained `.nii` or `.nii.gz` file — detached `.hdr`/`.img` pairs are rejected
 - 3D viewing requires WebGL2 with 3D texture support
 - The app auto-loads a demo volume until you replace it with your own file
 - This project does not claim clinical validation
