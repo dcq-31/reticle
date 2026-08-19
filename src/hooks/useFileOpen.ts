@@ -32,9 +32,16 @@ export function useFileOpen(): FileOpenHandle {
     store.setLoading(true);
     store.setJobStatus("loading");
     store.setStatus(`Reading ${file.name}…`);
+    // A superseded load must not clear the spinner — the newer load owns it.
+    let superseded = false;
     try {
       const result = await getViewerLoadService().load({ file, kind });
-      if (result.status === "stale" || result.status === "aborted") {
+      if (result.status === "stale") {
+        superseded = true;
+        store.setJobStatus(result.status);
+        return;
+      }
+      if (result.status === "aborted") {
         store.setJobStatus(result.status);
         return;
       }
@@ -48,7 +55,8 @@ export function useFileOpen(): FileOpenHandle {
         store.showToast(`Loaded ${volume.name}`);
       } else {
         store.addOverlay(volume);
-        store.setStatus(volumeStatus(store.base?.volume ?? volume));
+        const base = useViewerStore.getState().base;
+        store.setStatus(volumeStatus(base?.volume ?? volume));
         store.showToast(`Added overlay ${volume.name}`);
       }
       store.setJobStatus("success");
@@ -59,7 +67,7 @@ export function useFileOpen(): FileOpenHandle {
       store.showToast(`Could not load: ${msg}`, "error");
       store.setJobStatus("error");
     } finally {
-      store.setLoading(false);
+      if (!superseded) store.setLoading(false);
     }
   }, []);
 

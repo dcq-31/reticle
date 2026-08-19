@@ -100,10 +100,25 @@ function readZTerm(dv: DataView, base: number, max: number): string {
   return out;
 }
 
+function checkDim(label: string, value: number): number {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`Invalid NIfTI header: ${label} is ${value}, expected a positive integer.`);
+  }
+  return value;
+}
+
 export function parseHeader(buf: ArrayBuffer): NiftiHeader {
+  if (buf.byteLength < 4) {
+    throw new Error(`Not a NIfTI file (only ${buf.byteLength} bytes).`);
+  }
   const dv = new DataView(buf);
   const endian = detectEndian(dv);
   if (!endian) throw new Error("Not a NIfTI file (unrecognized header size).");
+  if (buf.byteLength < endian.hdrSize) {
+    throw new Error(
+      `Truncated NIfTI header: declares ${endian.hdrSize} bytes, file has ${buf.byteLength}.`,
+    );
+  }
   const le = endian.littleEndian;
   const isV2 = endian.hdrSize === 540;
 
@@ -162,10 +177,26 @@ export function parseHeader(buf: ArrayBuffer): NiftiHeader {
 
   const entry = entryFor(datatypeCode);
 
-  const nx = dim[1] || 1;
-  const ny = dim[2] || 1;
-  const nz = dim[3] || 1;
-  const nt = dim[0] >= 4 && dim[4] > 0 ? dim[4] : 1;
+  // `|| 1` is deliberate leniency for headers that zero an unused dimension.
+  const nx = checkDim("dim[1]", dim[1] || 1);
+  const ny = checkDim("dim[2]", dim[2] || 1);
+  const nz = checkDim("dim[3]", dim[3] || 1);
+  const nt = checkDim("dim[4]", dim[0] >= 4 && dim[4] > 0 ? dim[4] : 1);
+
+  const nElem = nx * ny * nz * nt;
+  if (!Number.isSafeInteger(nElem)) {
+    throw new Error(`Invalid NIfTI header: voxel count ${nElem} is out of range.`);
+  }
+  if (!Number.isInteger(voxOffset) || voxOffset < 0) {
+    throw new Error(`Invalid NIfTI header: vox_offset is ${voxOffset}.`);
+  }
+  const dataEnd = voxOffset + nElem * entry.bytes;
+  if (!Number.isSafeInteger(dataEnd) || dataEnd > buf.byteLength) {
+    throw new Error(
+      `Truncated NIfTI file: header declares ${nElem} ${entry.name} voxels ending at byte ` +
+        `${dataEnd}, but the file is ${buf.byteLength} bytes.`,
+    );
+  }
 
   return {
     isV2,
