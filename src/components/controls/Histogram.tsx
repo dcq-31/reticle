@@ -3,7 +3,13 @@
 import { useEffect, useRef } from "react";
 
 import { fmt } from "@/lib/utils/fmt";
-import { useActiveLayer, useActiveLayerStats, useViewerStore, type Layer, type LayerId } from "@/store";
+import {
+  useActiveLayer,
+  useActiveLayerStats,
+  useViewerStore,
+  type Layer,
+  type LayerId,
+} from "@/store";
 
 const CANVAS_W = 600;
 const CANVAS_H = 96;

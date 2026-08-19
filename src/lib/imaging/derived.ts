@@ -7,7 +7,10 @@ export interface DerivedVolumeCache {
   readonly statsByKey: Readonly<Record<DerivedVolumeCacheKey, VolumeStats>>;
 }
 
-export function makeDerivedVolumeCacheKey(volumeId: string, timeIndex: number): DerivedVolumeCacheKey {
+export function makeDerivedVolumeCacheKey(
+  volumeId: string,
+  timeIndex: number,
+): DerivedVolumeCacheKey {
   return `${volumeId}@${timeIndex}`;
 }
 

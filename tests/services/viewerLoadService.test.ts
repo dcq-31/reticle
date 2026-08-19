@@ -42,6 +42,16 @@ function makeVolume(id: string): Volume {
   };
 }
 
+// `resolve!` is required: TS does not track assignment inside the executor
+// and would narrow the binding to `never` at the call site.
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
 describe("ViewerLoadService", () => {
   const adapter: FormatAdapter = {
     id: "nifti",
@@ -74,14 +84,9 @@ describe("ViewerLoadService", () => {
   it("marks older results as stale when a newer request wins", async () => {
     mocks.resolveAdapterMock.mockResolvedValue({ adapter, head: new Uint8Array([1, 2, 3]) });
 
-    let resolveFirst: ((volumes: readonly Volume[]) => void) | null = null;
+    const first = deferred<readonly Volume[]>();
     mocks.loadVolumesInWorkerMock
-      .mockImplementationOnce(
-        () =>
-          new Promise<readonly Volume[]>((resolve) => {
-            resolveFirst = resolve;
-          }),
-      )
+      .mockImplementationOnce(() => first.promise)
       .mockResolvedValueOnce([makeVolume("vol-latest")]);
 
     const service = new ViewerLoadService();
@@ -95,13 +100,12 @@ describe("ViewerLoadService", () => {
       kind: "base",
     });
 
-    expect(resolveFirst).not.toBeNull();
-    resolveFirst?.([makeVolume("vol-stale")]);
+    first.resolve([makeVolume("vol-stale")]);
 
-    const [first, second] = await Promise.all([firstPromise, secondPromise]);
-    expect(first.status).toBe("stale");
-    expect(first.volumes).toHaveLength(0);
-    expect(second.status).toBe("success");
-    expect(second.volumes[0]?.volume.id).toBe("vol-latest");
+    const [firstResult, secondResult] = await Promise.all([firstPromise, secondPromise]);
+    expect(firstResult.status).toBe("stale");
+    expect(firstResult.volumes).toHaveLength(0);
+    expect(secondResult.status).toBe("success");
+    expect(secondResult.volumes[0]?.volume.id).toBe("vol-latest");
   });
 });

@@ -53,7 +53,8 @@ export function useSliceRenderer(
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { base, overlays, cross, crosshairVisible, convention, interp } = storeAdapter.getSnapshot();
+    const { base, overlays, cross, crosshairVisible, convention, interp } =
+      storeAdapter.getSnapshot();
     const size = sizeRef.current;
 
     ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
