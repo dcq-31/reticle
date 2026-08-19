@@ -99,3 +99,47 @@ describe("parseHeader (NIfTI-1)", () => {
     expect(() => parseHeader(buf)).toThrow(/Unsupported NIfTI datatype/);
   });
 });
+
+describe("parseHeader validation", () => {
+  function validBuffer(): ArrayBuffer {
+    return buildNifti1Buffer({
+      nx: 4,
+      ny: 4,
+      nz: 4,
+      datatypeCode: 16,
+      data: new Float32Array(4 * 4 * 4),
+    });
+  }
+
+  it("rejects a buffer too small to hold the size word", () => {
+    expect(() => parseHeader(new ArrayBuffer(2))).toThrow(/only 2 bytes/);
+  });
+
+  it("rejects a buffer shorter than the declared header size", () => {
+    const buf = new ArrayBuffer(100);
+    new DataView(buf).setInt32(0, 348, true);
+    expect(() => parseHeader(buf)).toThrow(/Truncated NIfTI header/);
+  });
+
+  it("rejects a negative dimension", () => {
+    const buf = validBuffer();
+    new DataView(buf).setInt16(42, -4, true); // dim[1]
+    expect(() => parseHeader(buf)).toThrow(/dim\[1\] is -4/);
+  });
+
+  it("rejects a fractional vox_offset", () => {
+    const buf = validBuffer();
+    new DataView(buf).setFloat32(108, 352.5, true);
+    expect(() => parseHeader(buf)).toThrow(/vox_offset is 352\.5/);
+  });
+
+  it("rejects a file whose voxel data is truncated", () => {
+    const full = validBuffer();
+    const truncated = full.slice(0, full.byteLength - 32);
+    expect(() => parseHeader(truncated)).toThrow(/Truncated NIfTI file/);
+  });
+
+  it("accepts a file whose voxel data exactly fills the buffer", () => {
+    expect(() => parseHeader(validBuffer())).not.toThrow();
+  });
+});
