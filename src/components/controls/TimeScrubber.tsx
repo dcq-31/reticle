@@ -39,7 +39,6 @@ export function TimeScrubber(): React.ReactElement | null {
       const total = store.base?.volume.nt ?? 1;
       const next = (store.cross.t + 1) % total;
       store.setCross({ t: next });
-      store.refreshStats();
     }, interval);
     return () => {
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
@@ -62,7 +61,6 @@ export function TimeScrubber(): React.ReactElement | null {
           onChange={(e) => {
             const next = Number(e.target.value);
             useViewerStore.getState().setCross({ t: next });
-            useViewerStore.getState().refreshStats();
           }}
           className="reticle-slider min-w-0 flex-1"
         />

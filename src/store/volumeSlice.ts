@@ -46,8 +46,14 @@ export interface VolumeActions {
   setActiveInvert: (invert: boolean) => void;
   applyWindowPreset: (preset: WindowPreset) => void;
   refreshStats: () => void;
-  getStatsForVolume: (volumeId: string, timeIndex?: number) => ReturnType<typeof getCachedVolumeStats>;
-  getStatsForLayer: (layerId?: LayerId | null, timeIndex?: number) => ReturnType<typeof getCachedVolumeStats>;
+  getStatsForVolume: (
+    volumeId: string,
+    timeIndex?: number,
+  ) => ReturnType<typeof getCachedVolumeStats>;
+  getStatsForLayer: (
+    layerId?: LayerId | null,
+    timeIndex?: number,
+  ) => ReturnType<typeof getCachedVolumeStats>;
   getLayerRole: (layerId: LayerId) => LayerRole | null;
 }
 
@@ -58,7 +64,9 @@ const EMPTY_DOCUMENT: ViewerDocument = {
   layerRoles: {},
 };
 
-function defaultBaseDisplay(stats: NonNullable<ReturnType<typeof getCachedVolumeStats>>): DisplayProps {
+function defaultBaseDisplay(
+  stats: NonNullable<ReturnType<typeof getCachedVolumeStats>>,
+): DisplayProps {
   const lo = stats.p2;
   const hi = stats.p98;
   return {
@@ -118,6 +126,12 @@ function rebuildCompatLayers(document: ViewerDocument): {
   };
 }
 
+/** Reads and warms must clamp identically, or their cache keys diverge. */
+function clampTimeIndex(volume: Volume, timeIndex: number): number {
+  const last = Math.max(1, volume.nt) - 1;
+  return timeIndex < 0 ? 0 : timeIndex > last ? last : timeIndex;
+}
+
 function ensureStatsForVolumeState(
   state: Pick<VolumeState, "derivedCache" | "statsVersion">,
   volume: Volume,
@@ -127,7 +141,7 @@ function ensureStatsForVolumeState(
   readonly stats: NonNullable<ReturnType<typeof getCachedVolumeStats>>;
   readonly statsVersion: number;
 } {
-  const ensured = ensureVolumeStats(state.derivedCache, volume, timeIndex);
+  const ensured = ensureVolumeStats(state.derivedCache, volume, clampTimeIndex(volume, timeIndex));
   return {
     derivedCache: ensured.cache,
     stats: ensured.stats,
@@ -135,22 +149,51 @@ function ensureStatsForVolumeState(
   };
 }
 
+function warmStatsForLayers(
+  state: Pick<VolumeState, "derivedCache" | "statsVersion">,
+  layers: readonly Layer[],
+  timeIndex: number,
+): { readonly derivedCache: DerivedVolumeCache; readonly statsVersion: number } {
+  let derivedCache = state.derivedCache;
+  let statsVersion = state.statsVersion;
+  for (const layer of layers) {
+    const ensured = ensureStatsForVolumeState(
+      { derivedCache, statsVersion },
+      layer.volume,
+      timeIndex,
+    );
+    derivedCache = ensured.derivedCache;
+    statsVersion = ensured.statsVersion;
+  }
+  return { derivedCache, statsVersion };
+}
+
+function evictVolumeStats(cache: DerivedVolumeCache, volumeId: string): DerivedVolumeCache {
+  const prefix = `${volumeId}@`;
+  const statsByKey = Object.fromEntries(
+    Object.entries(cache.statsByKey).filter(([key]) => !key.startsWith(prefix)),
+  ) as DerivedVolumeCache["statsByKey"];
+  return { statsByKey };
+}
+
 function buildLayer(
   volume: Volume,
   role: LayerRole,
   derivedCache: DerivedVolumeCache,
   statsVersion: number,
+  timeIndex: number,
 ): {
   readonly layer: Layer;
   readonly derivedCache: DerivedVolumeCache;
   readonly statsVersion: number;
 } {
-  const ensured = ensureStatsForVolumeState({ derivedCache, statsVersion }, volume, 0);
+  const ensured = ensureStatsForVolumeState({ derivedCache, statsVersion }, volume, timeIndex);
   return {
     layer: {
       id: volume.id,
       volume,
-      display: role === "base" ? defaultBaseDisplay(ensured.stats) : defaultOverlayDisplay(ensured.stats),
+      display:
+        role === "base" ? defaultBaseDisplay(ensured.stats) : defaultOverlayDisplay(ensured.stats),
     },
     derivedCache: ensured.derivedCache,
     statsVersion: ensured.statsVersion,
@@ -161,7 +204,9 @@ function buildLayer(
  * Selector: the layer the W/L sliders + colormap picker are currently editing.
  * Falls back to the base when `activeLayerId` is stale.
  */
-export function selectActiveLayer(state: Pick<VolumeState, "activeLayerId" | "base" | "overlays">): Layer | null {
+export function selectActiveLayer(
+  state: Pick<VolumeState, "activeLayerId" | "base" | "overlays">,
+): Layer | null {
   if (!state.activeLayerId) return state.base;
   if (state.base?.id === state.activeLayerId) return state.base;
   return state.overlays.find((l) => l.id === state.activeLayerId) ?? state.base;
@@ -192,7 +237,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     statsVersion: 0,
 
     setBase: (volume) => {
-      const built = buildLayer(volume, "base", get().derivedCache, get().statsVersion);
+      const built = buildLayer(volume, "base", { statsByKey: {} }, get().statsVersion, 0);
       const document: ViewerDocument = {
         layers: [built.layer],
         layerRoles: { [built.layer.id]: "base" },
@@ -209,7 +254,13 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
 
     addOverlay: (volume) => {
       const state = get();
-      const built = buildLayer(volume, "overlay", state.derivedCache, state.statsVersion);
+      const built = buildLayer(
+        volume,
+        "overlay",
+        state.derivedCache,
+        state.statsVersion,
+        state.cross.t,
+      );
       const document: ViewerDocument = {
         layers: [...state.document.layers, built.layer],
         layerRoles: {
@@ -247,10 +298,17 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
         };
         const activeLayerId =
           state.activeLayerId === layerId ? (state.base?.id ?? null) : state.activeLayerId;
+        const removed = state.document.layers.find((layer) => layer.id === layerId);
         return {
           document,
           ...rebuildCompatLayers(document),
           activeLayerId,
+          ...(removed
+            ? {
+                derivedCache: evictVolumeStats(state.derivedCache, removed.volume.id),
+                statsVersion: state.statsVersion + 1,
+              }
+            : {}),
         };
       });
     },
@@ -279,9 +337,13 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     },
 
     setCross: (partial) => {
-      const { base } = get();
-      const cross = clampToVolume({ ...get().cross, ...partial }, base);
-      set({ cross });
+      const state = get();
+      const cross = clampToVolume({ ...state.cross, ...partial }, state.base);
+      if (cross.t === state.cross.t) {
+        set({ cross });
+        return;
+      }
+      set({ cross, ...warmStatsForLayers(state, state.document.layers, cross.t) });
     },
 
     setCrosshairVisible: (visible) => set({ crosshairVisible: visible }),
@@ -343,13 +405,12 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     },
 
     refreshStats: () => {
-      const { base, cross, derivedCache, statsVersion } = get();
-      if (!base) return;
-      const ensured = ensureStatsForVolumeState({ derivedCache, statsVersion }, base.volume, cross.t);
-      if (ensured.statsVersion !== statsVersion) {
+      const state = get();
+      const warmed = warmStatsForLayers(state, state.document.layers, state.cross.t);
+      if (warmed.statsVersion !== state.statsVersion) {
         set({
-          derivedCache: ensured.derivedCache,
-          statsVersion: ensured.statsVersion,
+          derivedCache: warmed.derivedCache,
+          statsVersion: warmed.statsVersion,
         });
       }
     },
@@ -357,21 +418,16 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     getStatsForVolume: (volumeId, timeIndex = get().cross.t) =>
       getCachedVolumeStats(get().derivedCache, volumeId, timeIndex),
 
+    /** Pure read — mutating here re-enters any subscriber that snapshots stats. */
     getStatsForLayer: (layerId = get().activeLayerId, timeIndex = get().cross.t) => {
-      const layer = selectLayerById(get(), layerId) ?? get().base;
+      const state = get();
+      const layer = selectLayerById(state, layerId) ?? state.base;
       if (!layer) return null;
-      const cached = getCachedVolumeStats(get().derivedCache, layer.volume.id, timeIndex);
-      if (cached) return cached;
-      const ensured = ensureStatsForVolumeState(
-        { derivedCache: get().derivedCache, statsVersion: get().statsVersion },
-        layer.volume,
-        timeIndex,
+      return getCachedVolumeStats(
+        state.derivedCache,
+        layer.volume.id,
+        clampTimeIndex(layer.volume, timeIndex),
       );
-      set({
-        derivedCache: ensured.derivedCache,
-        statsVersion: ensured.statsVersion,
-      });
-      return ensured.stats;
     },
 
     getLayerRole: (layerId) => get().document.layerRoles[layerId] ?? null,
@@ -405,14 +461,24 @@ function mutateLayerDisplay(
 }
 
 export function selectLayerStats(
-  state: Pick<VolumeSlice, "statsVersion" | "cross" | "derivedCache" | "base" | "overlays" | "activeLayerId">,
+  state: Pick<
+    VolumeSlice,
+    "statsVersion" | "cross" | "derivedCache" | "base" | "overlays" | "activeLayerId"
+  >,
   layerId?: LayerId | null,
 ) {
   void state.statsVersion;
   const targetId = layerId ?? state.activeLayerId;
   const layer =
-    (targetId ? (state.base?.id === targetId ? state.base : state.overlays.find((l) => l.id === targetId)) : null) ??
-    state.base;
+    (targetId
+      ? state.base?.id === targetId
+        ? state.base
+        : state.overlays.find((l) => l.id === targetId)
+      : null) ?? state.base;
   if (!layer) return null;
-  return state.derivedCache.statsByKey[makeDerivedVolumeCacheKey(layer.volume.id, state.cross.t)] ?? null;
+  const key = makeDerivedVolumeCacheKey(
+    layer.volume.id,
+    clampTimeIndex(layer.volume, state.cross.t),
+  );
+  return state.derivedCache.statsByKey[key] ?? null;
 }

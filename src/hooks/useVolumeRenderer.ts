@@ -305,11 +305,11 @@ export function useVolumeRenderer(
 
   // Store subscriptions: each fires a targeted re-sync.
   useEffect(() => {
-    const unsubVolume = storeAdapter.subscribeVolume(() => {
-        rebuildTexture();
-        resetOrbit(orbitRef.current);
-        schedRef.current?.request();
-      });
+    const unsubVolume = storeAdapter.subscribeVolume(({ volumeChanged }) => {
+      rebuildTexture();
+      if (volumeChanged) resetOrbit(orbitRef.current);
+      schedRef.current?.request();
+    });
     const unsubDisplay = storeAdapter.subscribeDisplay(() => syncDisplay());
     const unsubSettings = storeAdapter.subscribeSettings(() => syncSettings());
     const unsubReset = storeAdapter.subscribeReset(() => {
