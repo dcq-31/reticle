@@ -128,3 +128,67 @@ test("intensity window slider moves the level", async ({ page }) => {
 
   expect(errors, errors.join("\n")).toEqual([]);
 });
+
+test("mobile layout stays compact and accepts touch drag", async ({ page }) => {
+  const errors = collectConsoleErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.waitForSelector('[aria-label="Axial view"] canvas');
+  await page.waitForTimeout(400);
+
+  await expect(page.locator('[aria-label="Volume controls"]')).toBeHidden();
+  await expect(page.locator('summary:has-text("Controls")')).toBeVisible();
+  await expect(page.getByRole("group", { name: "Layout" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Grid" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Single" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "3D", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Axial" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Coronal" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sagittal" })).toBeVisible();
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  expect(overflow).toBe(true);
+
+  const coronalButton = page.getByRole("button", { name: "Coronal" });
+  await coronalButton.click();
+  await expect(page.locator('[aria-label="Coronal view"] canvas')).toBeVisible();
+
+  const canvas = page.locator('[aria-label="Coronal view"] canvas');
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  if (box) {
+    const x1 = box.x + box.width * 0.42;
+    const y1 = box.y + box.height * 0.42;
+    const x2 = box.x + box.width * 0.58;
+    const y2 = box.y + box.height * 0.58;
+    await canvas.dispatchEvent("pointerdown", {
+      pointerId: 31,
+      pointerType: "touch",
+      clientX: x1,
+      clientY: y1,
+      buttons: 1,
+    });
+    await canvas.dispatchEvent("pointermove", {
+      pointerId: 31,
+      pointerType: "touch",
+      clientX: x2,
+      clientY: y2,
+      buttons: 1,
+    });
+    await canvas.dispatchEvent("pointerup", {
+      pointerId: 31,
+      pointerType: "touch",
+      clientX: x2,
+      clientY: y2,
+      buttons: 0,
+    });
+  }
+  await page.waitForTimeout(150);
+
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  await expect(page.locator('[aria-label="3D volume view"] canvas')).toBeVisible();
+  await page.getByRole("button", { name: "Slices", exact: true }).click();
+  await expect(page.locator('[aria-label="Coronal view"] canvas')).toBeVisible();
+
+  expect(errors, errors.join("\n")).toEqual([]);
+});
