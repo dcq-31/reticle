@@ -1,5 +1,7 @@
 import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
 
+import { buildNifti1Buffer } from "../tests/fixtures/nifti";
+
 /**
  * End-to-end smoke for Reticle:
  *   1. Page loads, no runtime errors.
@@ -43,6 +45,32 @@ async function paintedPct(page: Page, selector: string): Promise<number> {
     }
     return painted / Math.max(1, samples);
   }, selector);
+}
+
+function makeOverlayFile(name: string): { name: string; mimeType: string; buffer: Buffer } {
+  const nx = 4;
+  const ny = 4;
+  const nz = 4;
+  const data = new Float32Array(nx * ny * nz);
+  for (let i = 0; i < data.length; i++) data[i] = 100 + i;
+  return {
+    name,
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from(
+      buildNifti1Buffer({
+        nx,
+        ny,
+        nz,
+        datatypeCode: 16,
+        data,
+        sform: [
+          [1, 0, 0, 0],
+          [0, 1, 0, 0],
+          [0, 0, 1, 0],
+        ],
+      }),
+    ),
+  };
 }
 
 test("viewer mounts, planes paint, crosshair sync works", async ({ page }) => {
@@ -189,6 +217,33 @@ test("mobile layout stays compact and accepts touch drag", async ({ page }) => {
   await expect(page.locator('[aria-label="3D volume view"] canvas')).toBeVisible();
   await page.getByRole("button", { name: "Slices", exact: true }).click();
   await expect(page.locator('[aria-label="Coronal view"] canvas')).toBeVisible();
+
+  expect(errors, errors.join("\n")).toEqual([]);
+});
+
+test("mobile overlays drawer exposes removal and closes after delete", async ({ page }) => {
+  const errors = collectConsoleErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.waitForSelector('[aria-label="Axial view"] canvas');
+  await page.waitForTimeout(400);
+
+  await page.getByRole("button", { name: "Add overlay" }).click();
+  await page.locator('input[type="file"]').nth(1).setInputFiles(makeOverlayFile("mobile-overlay.nii"));
+  await page.waitForTimeout(400);
+
+  await expect(page.getByRole("button", { name: "Overlays" })).toContainText("1");
+  await page.getByRole("button", { name: "Overlays" }).click();
+  const drawer = page.getByRole("dialog", { name: "Overlays" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("mobile-overlay.nii")).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Remove overlay" }).click();
+  await page.waitForTimeout(250);
+
+  await expect(page.getByRole("dialog", { name: "Overlays" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Overlays" })).toContainText("0");
+  await expect(page.getByText("mobile-overlay.nii")).toHaveCount(0);
 
   expect(errors, errors.join("\n")).toEqual([]);
 });
