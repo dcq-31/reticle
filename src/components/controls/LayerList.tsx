@@ -3,7 +3,19 @@
 import { PanelGroup } from "@/components/controls/primitives";
 import { useViewerStore, type Layer } from "@/store";
 
-export function LayerList(): React.ReactElement | null {
+export type LayerListVariant = "desktop" | "mobile";
+
+interface LayerListProps {
+  readonly title?: string;
+  readonly variant?: LayerListVariant;
+  readonly onOverlayRemoved?: () => void;
+}
+
+export function LayerList({
+  title = "Layers",
+  variant = "desktop",
+  onOverlayRemoved,
+}: LayerListProps): React.ReactElement | null {
   const base = useViewerStore((s) => s.base);
   const overlays = useViewerStore((s) => s.overlays);
   const activeId = useViewerStore((s) => s.activeLayerId);
@@ -11,11 +23,18 @@ export function LayerList(): React.ReactElement | null {
   if (!base) return null;
 
   return (
-    <PanelGroup title="Layers">
+    <PanelGroup title={title} {...(variant === "mobile" ? { className: "!mb-0" } : {})}>
       <ul className="flex flex-col gap-1">
-        <LayerRow layer={base} kind="base" active={activeId === base.id} />
+        <LayerRow layer={base} kind="base" active={activeId === base.id} variant={variant} />
         {overlays.map((o) => (
-          <LayerRow key={o.id} layer={o} kind="overlay" active={activeId === o.id} />
+          <LayerRow
+            key={o.id}
+            layer={o}
+            kind="overlay"
+            active={activeId === o.id}
+            variant={variant}
+            {...(onOverlayRemoved ? { onOverlayRemoved } : {})}
+          />
         ))}
       </ul>
     </PanelGroup>
@@ -26,15 +45,101 @@ interface LayerRowProps {
   readonly layer: Layer;
   readonly kind: "base" | "overlay";
   readonly active: boolean;
+  readonly variant: LayerListVariant;
+  readonly onOverlayRemoved?: () => void;
 }
 
-function LayerRow({ layer, kind, active }: LayerRowProps): React.ReactElement {
+function LayerRow({
+  layer,
+  kind,
+  active,
+  variant,
+  onOverlayRemoved,
+}: LayerRowProps): React.ReactElement {
   const visible = layer.display.visible;
   const setActive = (): void => useViewerStore.getState().setActiveLayer(layer.id);
   const toggleVisible = (): void =>
     useViewerStore.getState().setLayerVisibility(layer.id, !visible);
-  const remove = (): void => useViewerStore.getState().removeLayer(layer.id);
+  const remove = (): void => {
+    useViewerStore.getState().removeLayer(layer.id);
+    onOverlayRemoved?.();
+  };
   const setOpacity = (o: number): void => useViewerStore.getState().setLayerOpacity(layer.id, o);
+
+  if (variant === "mobile") {
+    return (
+      <li
+        className={
+          "border-line bg-surface-2 flex flex-col gap-2 rounded border px-2.5 py-2 " +
+          (active ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]" : "")
+        }
+      >
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            title={active ? "Active layer" : "Make active"}
+            aria-label={active ? "Active layer" : "Make active layer"}
+            aria-pressed={active}
+            onClick={setActive}
+            className={
+              "h-8 w-8 flex-none cursor-pointer rounded-full border text-[11px] " +
+              (active ? "bg-accent border-accent" : "border-line-bright bg-transparent")
+            }
+          />
+          <button
+            type="button"
+            title={visible ? "Hide layer" : "Show layer"}
+            aria-label={visible ? "Hide layer" : "Show layer"}
+            aria-pressed={visible}
+            onClick={toggleVisible}
+            className={
+              "border-line-bright flex h-8 w-8 flex-none cursor-pointer items-center justify-center rounded-md border font-mono text-[12px] leading-none " +
+              (visible ? "text-accent" : "text-faint")
+            }
+          >
+            {visible ? "◉" : "○"}
+          </button>
+          <button
+            type="button"
+            onClick={setActive}
+            className="text-fg min-w-0 flex-1 cursor-pointer truncate text-left font-mono text-[11px]"
+            title={layer.volume.name}
+          >
+            {layer.volume.name}
+            <span className="text-faint ml-1.5">{kind === "base" ? "base" : "overlay"}</span>
+          </button>
+          {kind === "overlay" ? (
+            <button
+              type="button"
+              onClick={remove}
+              title="Remove overlay"
+              aria-label="Remove overlay"
+              className="border-line-bright text-faint hover:text-danger flex h-8 flex-none cursor-pointer items-center rounded-md border px-3 text-[11px] font-semibold"
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+        {kind === "overlay" ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(layer.display.opacity * 100)}
+              onChange={(e) => setOpacity(+e.target.value / 100)}
+              aria-label="Layer opacity"
+              title={`Opacity ${Math.round(layer.display.opacity * 100)}%`}
+              className="reticle-slider min-w-0 flex-1"
+            />
+            <span className="text-faint w-10 flex-none text-right font-mono text-[10px]">
+              {Math.round(layer.display.opacity * 100)}%
+            </span>
+          </div>
+        ) : null}
+      </li>
+    );
+  }
 
   return (
     <li

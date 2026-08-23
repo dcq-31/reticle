@@ -107,7 +107,7 @@ function MobileViewportGrid({
           Controls
         </summary>
         <div className="max-h-[42svh] overflow-y-auto border-t border-line">
-          <ControlPanel />
+          <ControlPanel showLayers={false} />
         </div>
       </details>
     </div>

@@ -9,7 +9,11 @@ import { VolumeControls } from "@/components/controls/VolumeControls";
 import { PanelGroup } from "@/components/controls/primitives";
 import { useViewerStore } from "@/store";
 
-export function ControlPanel(): React.ReactElement {
+interface ControlPanelProps {
+  readonly showLayers?: boolean;
+}
+
+export function ControlPanel({ showLayers = true }: ControlPanelProps): React.ReactElement {
   const isVolumeLayout = useViewerStore((s) => s.layout === "volume");
   return (
     <aside
@@ -17,7 +21,7 @@ export function ControlPanel(): React.ReactElement {
       className="bg-panel min-h-0 w-full overflow-x-hidden overflow-y-auto px-3.5 pt-3 pb-6 lg:h-full"
     >
       <TimeScrubber />
-      <LayerList />
+      {showLayers ? <LayerList /> : null}
       <IntensityWindow />
       <ColormapPicker />
       {isVolumeLayout ? <VolumeControls /> : null}

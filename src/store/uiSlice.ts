@@ -36,6 +36,8 @@ export interface UiState {
   resetSeq: number;
   /** Lifecycle state for the current ingest/background job. */
   jobStatus: ViewerJobStatus;
+  /** Mobile-only quick access drawer for overlay management. */
+  mobileLayersOpen: boolean;
 }
 
 export interface UiActions {
@@ -48,6 +50,7 @@ export interface UiActions {
   /** Bump resetSeq — viewports listen to this to clear their zoom/pan. */
   bumpResetSeq: () => void;
   setJobStatus: (status: ViewerJobStatus) => void;
+  setMobileLayersOpen: (open: boolean) => void;
 }
 
 export type UiSlice = UiState & UiActions;
@@ -65,6 +68,7 @@ export function createUiSlice(set: SetFn): UiSlice {
     dragActive: false,
     resetSeq: 0,
     jobStatus: "idle",
+    mobileLayersOpen: false,
 
     setHover: (hover) => set({ hover }),
     showToast: (text, kind = "info") => set({ toast: { id: toastSeq++, text, kind } }),
@@ -74,5 +78,6 @@ export function createUiSlice(set: SetFn): UiSlice {
     setDragActive: (dragActive) => set({ dragActive }),
     bumpResetSeq: () => set((state) => ({ resetSeq: state.resetSeq + 1 })),
     setJobStatus: (jobStatus) => set({ jobStatus }),
+    setMobileLayersOpen: (mobileLayersOpen) => set({ mobileLayersOpen }),
   };
 }
