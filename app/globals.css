@@ -31,6 +31,7 @@
     font-family: var(--font-ui);
     font-size: 13px;
     overflow: hidden;
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -92,6 +93,7 @@
     color: var(--color-fg);
     border-radius: 4px;
     padding: 4px 6px;
+    min-width: 0;
   }
   .reticle-num:focus {
     outline: none;

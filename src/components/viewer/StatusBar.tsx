@@ -28,16 +28,17 @@ export function StatusBar(): React.ReactElement {
 
   return (
     <footer
-      className="bg-surface border-line flex h-[30px] flex-none items-center border-t px-2 font-mono text-[11px]"
+      className="bg-surface border-line flex flex-wrap items-center gap-x-0 gap-y-1 border-t px-2 py-1 font-mono text-[11px] md:h-[30px] md:py-0"
       aria-label="Volume status"
     >
       <Sb label="Voxel" value={info ? info.voxel.join("  ") : "— — —"} />
       <Sb
         label="World mm"
         value={info ? info.world.map((x) => x.toFixed(1)).join("  ") : "— — —"}
+        className="max-md:hidden"
       />
       <Sb label="Value" value={info ? fmt(info.value) : "—"} valTone="hot" />
-      <Sb label="Orient" value={info?.orient ?? "—"} />
+      <Sb label="Orient" value={info?.orient ?? "—"} className="max-sm:hidden" />
       <div className="flex-1" />
       <Sb label="Dims" value={info?.dims ?? "—"} />
     </footer>
@@ -48,14 +49,21 @@ function Sb({
   label,
   value,
   valTone,
+  className,
 }: {
   readonly label: string;
   readonly value: string;
   readonly valTone?: "accent" | "hot";
+  readonly className?: string;
 }): React.ReactElement {
   const tone = valTone === "hot" ? "text-hot" : "text-accent";
   return (
-    <div className="border-line flex h-full items-center gap-1.5 border-r px-3 whitespace-nowrap last:border-r-0">
+    <div
+      className={
+        "border-line flex items-center gap-1.5 border-r px-2.5 whitespace-nowrap last:border-r-0 md:h-full md:px-3 " +
+        (className ?? "")
+      }
+    >
       <span className="text-faint text-[9.5px] tracking-[0.1em] uppercase">{label}</span>
       <span className={tone}>{value}</span>
     </div>

@@ -14,7 +14,7 @@ export function ControlPanel(): React.ReactElement {
   return (
     <aside
       aria-label="Volume controls"
-      className="bg-panel h-full w-full overflow-x-hidden overflow-y-auto px-3.5 pt-3 pb-6"
+      className="bg-panel min-h-0 w-full overflow-x-hidden overflow-y-auto px-3.5 pt-3 pb-6 lg:h-full"
     >
       <TimeScrubber />
       <LayerList />

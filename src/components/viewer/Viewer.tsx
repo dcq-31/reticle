@@ -26,7 +26,7 @@ export default function Viewer(): React.ReactElement {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden">
       <Toolbar />
       <ViewportGrid />
       <StatusBar />
