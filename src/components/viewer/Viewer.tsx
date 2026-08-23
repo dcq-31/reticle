@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { ViewportGrid } from "@/components/grid/ViewportGrid";
 import { DropOverlay } from "@/components/viewer/DropOverlay";
+import { MobileLayersSheet } from "@/components/viewer/MobileLayersSheet";
 import { StatusBar } from "@/components/viewer/StatusBar";
 import { Toast } from "@/components/viewer/Toast";
 import { Toolbar } from "@/components/viewer/Toolbar";
@@ -30,6 +31,7 @@ export default function Viewer(): React.ReactElement {
       <Toolbar />
       <ViewportGrid />
       <StatusBar />
+      <MobileLayersSheet />
       <DropOverlay />
       <Toast />
     </div>

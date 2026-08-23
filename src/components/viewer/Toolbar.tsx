@@ -14,6 +14,8 @@ export function Toolbar(): React.ReactElement {
   const interp = useViewerStore((s) => s.interp);
   const status = useViewerStore((s) => s.status);
   const loading = useViewerStore((s) => s.loading);
+  const overlayCount = useViewerStore((s) => s.overlays.length);
+  const mobileLayersOpen = useViewerStore((s) => s.mobileLayersOpen);
   const { openBase, openOverlay } = useFileOpen();
   const baseInputRef = useRef<HTMLInputElement | null>(null);
   const overlayInputRef = useRef<HTMLInputElement | null>(null);
@@ -92,21 +94,43 @@ export function Toolbar(): React.ReactElement {
             onChange={(v) => useViewerStore.getState().setLayout(v)}
           />
         ) : (
-          <button
-            type="button"
-            aria-label={layout === "volume" ? "Return to slices" : "Switch to 3D"}
-            onClick={() =>
-              useViewerStore.getState().setLayout(layout === "volume" ? "grid" : "volume")
-            }
-            className={
-              "border-line-bright rounded border px-3 py-1.5 text-[11px] font-semibold transition-colors " +
-              (layout === "volume"
-                ? "bg-surface-2 text-dim hover:bg-[#18222c] hover:text-fg"
-                : "bg-accent text-[#04201c] hover:bg-[#3fe3ce]")
-            }
-          >
-            {layout === "volume" ? "Slices" : "3D"}
-          </button>
+          <>
+            <button
+              type="button"
+              aria-label={layout === "volume" ? "Return to slices" : "Switch to 3D"}
+              onClick={() =>
+                useViewerStore.getState().setLayout(layout === "volume" ? "grid" : "volume")
+              }
+              className={
+                "border-line-bright rounded border px-3 py-1.5 text-[11px] font-semibold transition-colors " +
+                (layout === "volume"
+                  ? "bg-surface-2 text-dim hover:bg-[#18222c] hover:text-fg"
+                  : "bg-accent text-[#04201c] hover:bg-[#3fe3ce]")
+              }
+            >
+              {layout === "volume" ? "Slices" : "3D"}
+            </button>
+            <button
+              type="button"
+              aria-label="Overlays"
+              aria-pressed={mobileLayersOpen}
+              onClick={() => useViewerStore.getState().setMobileLayersOpen(!mobileLayersOpen)}
+              className={
+                "border-line-bright relative rounded border px-3 py-1.5 text-[11px] font-semibold transition-colors " +
+                (mobileLayersOpen
+                  ? "bg-accent text-[#04201c] hover:bg-[#3fe3ce]"
+                  : "bg-surface-2 text-dim hover:bg-[#18222c] hover:text-fg")
+              }
+            >
+              Overlays
+              <span
+                aria-hidden
+                className="bg-line text-fg ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-none"
+              >
+                {overlayCount}
+              </span>
+            </button>
+          </>
         )}
       </div>
       <div className="order-4 flex w-full flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:ml-auto">
