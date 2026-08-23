@@ -44,6 +44,7 @@ const INTERACTION_STEPS_FACTOR = 0.5;
 /** ms of idleness before we rerender with the full step count. */
 const INTERACTION_IDLE_MS = 80;
 const WHEEL_IDLE_MS = 160;
+type PointerKind = "mouse" | "pen" | "touch";
 
 /**
  * Drives the Three.js raycaster lifecycle: renderer/scene/material setup,
@@ -222,27 +223,134 @@ export function useVolumeRenderer(
     const canvas = canvasRef.current;
     if (!canvas || failed) return;
 
+    type PointerInfo = { x: number; y: number; type: PointerKind };
     let mode: "rot" | "pan" | null = null;
+    let pinchActive = false;
     let lx = 0;
     let ly = 0;
+    let touchStartRadius = orbitRef.current.radius;
+    let touchStartTarget = orbitRef.current.target.clone();
+    let touchStartDistance = 1;
+    let touchStartCenterX = 0;
+    let touchStartCenterY = 0;
+    const pointers = new Map<number, PointerInfo>();
+    const previousTouches = new Map<number, { x: number; y: number }>();
+
+    const syncPointer = (e: PointerEvent): void => {
+      pointers.set(e.pointerId, {
+        x: e.clientX,
+        y: e.clientY,
+        type: e.pointerType as PointerKind,
+      });
+    };
+
+    const removePointer = (e: PointerEvent): void => {
+      pointers.delete(e.pointerId);
+      previousTouches.delete(e.pointerId);
+    };
+
+    const touchPoints = (): readonly PointerInfo[] =>
+      Array.from(pointers.values())
+        .filter((p) => p.type === "touch")
+        .slice(0, 2);
+
+    const touchGesture = (points: readonly PointerInfo[]): {
+      readonly centerX: number;
+      readonly centerY: number;
+      readonly distance: number;
+    } | null => {
+      const [a, b] = points;
+      if (!a || !b) return null;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      return {
+        centerX: (a.x + b.x) / 2,
+        centerY: (a.y + b.y) / 2,
+        distance: Math.max(1, Math.hypot(dx, dy)),
+      };
+    };
+
+    const beginPinch = (): void => {
+      const gesture = touchGesture(touchPoints());
+      if (!gesture) return;
+      pinchActive = true;
+      mode = "pan";
+      touchStartRadius = orbitRef.current.radius;
+      touchStartTarget = orbitRef.current.target.clone();
+      touchStartDistance = gesture.distance;
+      touchStartCenterX = gesture.centerX;
+      touchStartCenterY = gesture.centerY;
+    };
 
     const onPointerDown = (e: PointerEvent): void => {
+      syncPointer(e);
       canvas.setPointerCapture(e.pointerId);
+      interactingRef.current = true;
+      canvas.classList.add("dragging");
+
+      if (e.pointerType === "touch") {
+        previousTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touchPoints().length >= 2) {
+          beginPinch();
+        } else {
+          mode = "rot";
+          lx = e.clientX;
+          ly = e.clientY;
+        }
+        return;
+      }
+
       const isPan = e.button === 1 || e.shiftKey || e.button === 2;
       mode = isPan ? "pan" : "rot";
       lx = e.clientX;
       ly = e.clientY;
-      interactingRef.current = true;
-      canvas.classList.add("dragging");
     };
 
     const onPointerMove = (e: PointerEvent): void => {
+      syncPointer(e);
+      const orbit = orbitRef.current;
+
+      if (e.pointerType === "touch") {
+        if (touchPoints().length >= 2) {
+          if (!pinchActive) beginPinch();
+          const gesture = touchGesture(touchPoints());
+          if (!gesture) return;
+          const camera = cameraRef.current;
+          if (!camera) return;
+          orbit.radius = clamp(
+            touchStartRadius * (touchStartDistance / gesture.distance),
+            ORBIT_RADIUS_MIN,
+            ORBIT_RADIUS_MAX,
+          );
+          const right = new Vector3();
+          const up = new Vector3();
+          camera.matrixWorld.extractBasis(right, up, new Vector3());
+          const k = orbit.radius * 0.0016;
+          orbit.target.copy(touchStartTarget);
+          orbit.target
+            .addScaledVector(right, -(gesture.centerX - touchStartCenterX) * k)
+            .addScaledVector(up, (gesture.centerY - touchStartCenterY) * k);
+          schedRef.current?.request();
+          return;
+        }
+
+        pinchActive = false;
+        mode = "rot";
+        const prev = previousTouches.get(e.pointerId) ?? { x: e.clientX, y: e.clientY };
+        const dx = e.clientX - prev.x;
+        const dy = e.clientY - prev.y;
+        previousTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        orbit.theta -= dx * 0.01;
+        orbit.phi = clamp(orbit.phi - dy * 0.01, ORBIT_PHI_MIN, ORBIT_PHI_MAX);
+        schedRef.current?.request();
+        return;
+      }
+
       if (!mode) return;
       const dx = e.clientX - lx;
       const dy = e.clientY - ly;
       lx = e.clientX;
       ly = e.clientY;
-      const orbit = orbitRef.current;
       if (mode === "rot") {
         orbit.theta -= dx * 0.01;
         orbit.phi = clamp(orbit.phi - dy * 0.01, ORBIT_PHI_MIN, ORBIT_PHI_MAX);
@@ -259,7 +367,11 @@ export function useVolumeRenderer(
       schedRef.current?.request();
     };
 
-    const endPointer = (): void => {
+    const endPointer = (e: PointerEvent): void => {
+      removePointer(e);
+      if (e.pointerType === "touch" && touchPoints().length < 2) {
+        pinchActive = false;
+      }
       mode = null;
       interactingRef.current = false;
       canvas.classList.remove("dragging");
@@ -287,17 +399,28 @@ export function useVolumeRenderer(
       e.preventDefault();
     };
 
+    const onPointerCancel = (e: PointerEvent): void => {
+      removePointer(e);
+      if (e.pointerType === "touch" && touchPoints().length < 2) {
+        pinchActive = false;
+      }
+      mode = null;
+      interactingRef.current = false;
+      canvas.classList.remove("dragging");
+      schedRef.current?.request();
+    };
+
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", endPointer);
-    canvas.addEventListener("pointercancel", endPointer);
+    canvas.addEventListener("pointercancel", onPointerCancel);
     canvas.addEventListener("contextmenu", onContextMenu);
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", endPointer);
-      canvas.removeEventListener("pointercancel", endPointer);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("contextmenu", onContextMenu);
       canvas.removeEventListener("wheel", onWheel);
     };

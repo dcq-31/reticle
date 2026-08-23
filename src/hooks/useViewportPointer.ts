@@ -10,6 +10,7 @@ import { useViewerStore } from "@/store";
 import { selectActiveLayer } from "@/store/volumeSlice";
 
 type Mode = "crosshair" | "window" | "pan" | null;
+type PointerKind = "mouse" | "pen" | "touch";
 
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 12;
@@ -38,12 +39,20 @@ export function useViewportPointer(
     if (!canvas) return;
 
     let mode: Mode = null;
+    const pointers = new Map<number, { x: number; y: number; type: PointerKind }>();
     let startX = 0;
     let startY = 0;
     let startWinLevel = 0;
     let startWinWidth = 0;
     let startPanX = 0;
     let startPanY = 0;
+    let touchStartZoom = 1;
+    let touchStartPanX = 0;
+    let touchStartPanY = 0;
+    let touchStartDistance = 1;
+    let touchStartCenterX = 0;
+    let touchStartCenterY = 0;
+    let touchStartLayout: ReturnType<typeof layoutNow> | null = null;
 
     const canvasRect = (): DOMRect => canvas.getBoundingClientRect();
 
@@ -58,6 +67,39 @@ export function useViewportPointer(
         { width: rect.width, height: rect.height },
         viewportRef.current,
       );
+    };
+
+    const updatePointer = (e: PointerEvent): void => {
+      pointers.set(e.pointerId, {
+        x: e.clientX,
+        y: e.clientY,
+        type: e.pointerType as PointerKind,
+      });
+    };
+
+    const removePointer = (e: PointerEvent): void => {
+      pointers.delete(e.pointerId);
+    };
+
+    const touchPointers = (): readonly { x: number; y: number }[] =>
+      Array.from(pointers.values())
+        .filter((p) => p.type === "touch")
+        .slice(0, 2);
+
+    const touchGesture = (): {
+      readonly centerX: number;
+      readonly centerY: number;
+      readonly distance: number;
+    } | null => {
+      const [a, b] = touchPointers();
+      if (!a || !b) return null;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      return {
+        centerX: (a.x + b.x) / 2,
+        centerY: (a.y + b.y) / 2,
+        distance: Math.max(1, Math.hypot(dx, dy)),
+      };
     };
 
     const updateCrosshairFrom = (e: PointerEvent): void => {
@@ -91,8 +133,26 @@ export function useViewportPointer(
       const { base } = useViewerStore.getState();
       if (!base) return;
       canvas.setPointerCapture(e.pointerId);
+      updatePointer(e);
       startX = e.clientX;
       startY = e.clientY;
+      if (e.pointerType === "touch") {
+        const gesture = touchGesture();
+        if (gesture) {
+          mode = "pan";
+          touchStartZoom = viewportRef.current.zoom;
+          touchStartPanX = viewportRef.current.panX;
+          touchStartPanY = viewportRef.current.panY;
+          touchStartDistance = gesture.distance;
+          touchStartCenterX = gesture.centerX;
+          touchStartCenterY = gesture.centerY;
+          touchStartLayout = layoutNow();
+          return;
+        }
+        mode = "crosshair";
+        updateCrosshairFrom(e);
+        return;
+      }
       if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
         mode = "window";
         startWinLevel = base.display.win.level;
@@ -140,9 +200,36 @@ export function useViewportPointer(
     };
 
     const onPointerMove = (e: PointerEvent): void => {
+      updatePointer(e);
       const state = useViewerStore.getState();
       const base = state.base;
       if (!base) return;
+
+      if (e.pointerType === "touch") {
+        const gesture = touchGesture();
+        if (gesture) {
+          mode = "pan";
+          const before = touchStartLayout ?? layoutNow();
+          if (!before) return;
+          const zoomFactor = gesture.distance / touchStartDistance;
+          viewportRef.current.zoom = clamp(touchStartZoom * zoomFactor, ZOOM_MIN, ZOOM_MAX);
+          const after = layoutNow();
+          if (!after) return;
+          const dx = gesture.centerX - touchStartCenterX;
+          const dy = gesture.centerY - touchStartCenterY;
+          viewportRef.current.panX =
+            touchStartPanX +
+            dx +
+            (gesture.centerX - before.originX) * (1 - after.displayWidth / before.displayWidth);
+          viewportRef.current.panY =
+            touchStartPanY +
+            dy +
+            (gesture.centerY - before.originY) * (1 - after.displayHeight / before.displayHeight);
+          requestRender(false);
+          return;
+        }
+        mode = "crosshair";
+      }
 
       if (mode === "crosshair") {
         updateCrosshairFrom(e);
@@ -218,11 +305,23 @@ export function useViewportPointer(
       e.preventDefault();
     };
 
+    const onPointerUp = (e: PointerEvent): void => {
+      removePointer(e);
+      if (pointers.size < 2) touchStartLayout = null;
+      endMode();
+    };
+
+    const onPointerCancel = (e: PointerEvent): void => {
+      removePointer(e);
+      if (pointers.size < 2) touchStartLayout = null;
+      endMode();
+    };
+
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerleave", onPointerLeave);
-    canvas.addEventListener("pointerup", endMode);
-    canvas.addEventListener("pointercancel", endMode);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerCancel);
     canvas.addEventListener("contextmenu", onContextMenu);
     // Use a non-passive listener so we can preventDefault on wheel.
     canvas.addEventListener("wheel", onWheel, { passive: false });
@@ -231,8 +330,8 @@ export function useViewportPointer(
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);
-      canvas.removeEventListener("pointerup", endMode);
-      canvas.removeEventListener("pointercancel", endMode);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("contextmenu", onContextMenu);
       canvas.removeEventListener("wheel", onWheel);
     };
