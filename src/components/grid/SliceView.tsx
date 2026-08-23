@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useSliceRenderStoreAdapter } from "@/hooks/renderStoreAdapters";
 import { useSliceRenderer } from "@/hooks/useSliceRenderer";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useViewportPointer } from "@/hooks/useViewportPointer";
 import { planeSizes, sliceCoord, type Plane } from "@/lib/geometry/planes";
 import type { ViewportState } from "@/lib/render/viewLayout";
@@ -25,6 +26,7 @@ const PLANE_LABEL: Record<Plane, string> = {
 };
 
 export function SliceView({ plane }: SliceViewProps): React.ReactElement {
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewportRef = useRef<ViewportState>({ zoom: 1, panX: 0, panY: 0 });
@@ -88,7 +90,7 @@ export function SliceView({ plane }: SliceViewProps): React.ReactElement {
       ref={containerRef}
       role="region"
       aria-label={`${PLANE_LABEL[plane]} view`}
-      onDoubleClick={toggleMaximize}
+      onDoubleClick={isDesktop ? toggleMaximize : undefined}
       className="bg-bg group relative h-full min-h-0 w-full min-w-0 overflow-hidden"
     >
       <canvas
@@ -99,7 +101,7 @@ export function SliceView({ plane }: SliceViewProps): React.ReactElement {
         {PLANE_LABEL[plane]}
         <span className="text-dim ml-1.5">{sliceLabel}</span>
       </div>
-      <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
         <ViewTool title="Zoom in" onClick={() => setZoom(1.25)}>
           +
         </ViewTool>
@@ -109,9 +111,11 @@ export function SliceView({ plane }: SliceViewProps): React.ReactElement {
         <ViewTool title="Fit" onClick={fit}>
           ⤢
         </ViewTool>
-        <ViewTool title="Maximize" onClick={toggleMaximize}>
-          ▣
-        </ViewTool>
+        {isDesktop ? (
+          <ViewTool title="Maximize" onClick={toggleMaximize}>
+            ▣
+          </ViewTool>
+        ) : null}
       </div>
       <OrientCorner pos="t">{orientLabels.t}</OrientCorner>
       <OrientCorner pos="b">{orientLabels.b}</OrientCorner>
@@ -134,7 +138,7 @@ function ViewTool({ title, onClick, children }: ViewToolProps): React.ReactEleme
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="border-line text-dim hover:text-fg hover:border-line-bright flex h-6 w-6 cursor-pointer items-center justify-center rounded border bg-[rgba(8,14,18,0.7)] text-xs"
+      className="border-line text-dim hover:text-fg hover:border-line-bright flex h-7 w-7 cursor-pointer items-center justify-center rounded border bg-[rgba(8,14,18,0.7)] text-sm lg:h-6 lg:w-6 lg:text-xs"
     >
       {children}
     </button>

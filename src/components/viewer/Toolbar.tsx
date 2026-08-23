@@ -3,10 +3,12 @@
 import { useRef } from "react";
 
 import { useFileOpen } from "@/hooks/useFileOpen";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { makeDemoVolume } from "@/lib/imaging/nifti/demo";
 import { useViewerStore } from "@/store";
 
 export function Toolbar(): React.ReactElement {
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const layout = useViewerStore((s) => s.layout);
   const convention = useViewerStore((s) => s.convention);
   const interp = useViewerStore((s) => s.interp);
@@ -46,7 +48,7 @@ export function Toolbar(): React.ReactElement {
 
   return (
     <header
-      className="border-line flex h-12 flex-none items-center gap-3 border-b px-3.5"
+      className="border-line flex flex-wrap items-center gap-2 border-b px-3 py-2 sm:h-12 sm:px-3.5"
       style={{ background: "linear-gradient(180deg,#0d141b,#0a1015)" }}
     >
       <Brand />
@@ -55,101 +57,122 @@ export function Toolbar(): React.ReactElement {
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className="text-dim max-w-sm flex-1 truncate font-mono text-[11px]"
+        className="text-dim order-2 basis-full flex-1 truncate font-mono text-[10px] leading-tight sm:order-none sm:basis-auto sm:text-[11px]"
       >
         {status}
       </div>
-      <SegControl
-        label="Convention"
-        value={convention}
-        options={[
-          { value: "neuro", label: "Neuro" },
-          { value: "radio", label: "Radio" },
-        ]}
-        onChange={(v) => useViewerStore.getState().setConvention(v)}
-      />
-      <SegControl
-        label="Interpolation"
-        value={interp}
-        options={[
-          { value: "sharp", label: "Sharp" },
-          { value: "smooth", label: "Smooth" },
-        ]}
-        onChange={(v) => useViewerStore.getState().setInterp(v)}
-      />
-      <SegControl
-        label="Layout"
-        value={layout}
-        options={[
-          { value: "grid", label: "Grid" },
-          { value: "single", label: "Single" },
-          { value: "volume", label: "3D" },
-        ]}
-        onChange={(v) => useViewerStore.getState().setLayout(v)}
-      />
-      <Divider />
-      <button
-        type="button"
-        title="Reset views"
-        aria-label="Reset views"
-        onClick={onReset}
-        className="border-line text-dim hover:text-fg hover:border-line-bright flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded border transition-colors"
-      >
-        ⟳
-      </button>
-      <button
-        type="button"
-        onClick={() => baseInputRef.current?.click()}
-        className="bg-surface-2 text-fg border-line-bright cursor-pointer rounded border px-3 py-1.5 text-xs transition-colors hover:bg-[#18222c]"
-      >
-        Open file
-      </button>
-      <input
-        ref={baseInputRef}
-        type="file"
-        accept=".nii,.nii.gz,.gz"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void openBase(f);
-          e.target.value = "";
-        }}
-      />
-      <button
-        type="button"
-        disabled={loading || !hasBase}
-        title={hasBase ? "Add an overlay on top of the base volume" : "Load a base volume first"}
-        onClick={() => overlayInputRef.current?.click()}
-        className="bg-surface-2 text-fg border-line-bright cursor-pointer rounded border px-3 py-1.5 text-xs transition-colors hover:bg-[#18222c] disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Add overlay
-      </button>
-      <input
-        ref={overlayInputRef}
-        type="file"
-        accept=".nii,.nii.gz,.gz"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void openOverlay(f);
-          e.target.value = "";
-        }}
-      />
-      <button
-        type="button"
-        disabled={loading}
-        className="bg-accent cursor-pointer rounded border border-transparent px-3 py-1.5 text-xs font-semibold text-[#04201c] transition-colors hover:bg-[#3fe3ce] disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={onLoadDemo}
-      >
-        Load sample brain
-      </button>
+      <div className="order-3 flex w-full flex-wrap items-center gap-2 sm:order-none sm:w-auto">
+        <SegControl
+          label="Convention"
+          value={convention}
+          options={[
+            { value: "neuro", label: "Neuro" },
+            { value: "radio", label: "Radio" },
+          ]}
+          onChange={(v) => useViewerStore.getState().setConvention(v)}
+        />
+        <SegControl
+          label="Interpolation"
+          value={interp}
+          options={[
+            { value: "sharp", label: "Sharp" },
+            { value: "smooth", label: "Smooth" },
+          ]}
+          onChange={(v) => useViewerStore.getState().setInterp(v)}
+        />
+        {isDesktop ? (
+          <SegControl
+            label="Layout"
+            value={layout}
+            options={[
+              { value: "grid", label: "Grid" },
+              { value: "single", label: "Single" },
+              { value: "volume", label: "3D" },
+            ]}
+            onChange={(v) => useViewerStore.getState().setLayout(v)}
+          />
+        ) : (
+          <button
+            type="button"
+            aria-label={layout === "volume" ? "Return to slices" : "Switch to 3D"}
+            onClick={() =>
+              useViewerStore.getState().setLayout(layout === "volume" ? "grid" : "volume")
+            }
+            className={
+              "border-line-bright rounded border px-3 py-1.5 text-[11px] font-semibold transition-colors " +
+              (layout === "volume"
+                ? "bg-surface-2 text-dim hover:bg-[#18222c] hover:text-fg"
+                : "bg-accent text-[#04201c] hover:bg-[#3fe3ce]")
+            }
+          >
+            {layout === "volume" ? "Slices" : "3D"}
+          </button>
+        )}
+      </div>
+      <div className="order-4 flex w-full flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:ml-auto">
+        <button
+          type="button"
+          title="Reset views"
+          aria-label="Reset views"
+          onClick={onReset}
+          className="border-line text-dim hover:text-fg hover:border-line-bright flex h-8 w-8 cursor-pointer items-center justify-center rounded border transition-colors"
+        >
+          ⟳
+        </button>
+        <button
+          type="button"
+          onClick={() => baseInputRef.current?.click()}
+          className="bg-surface-2 text-fg border-line-bright cursor-pointer rounded border px-3 py-1.5 text-xs transition-colors hover:bg-[#18222c] sm:px-3"
+        >
+          Open file
+        </button>
+        <input
+          ref={baseInputRef}
+          type="file"
+          accept=".nii,.nii.gz,.gz"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void openBase(f);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          disabled={loading || !hasBase}
+          title={hasBase ? "Add an overlay on top of the base volume" : "Load a base volume first"}
+          onClick={() => overlayInputRef.current?.click()}
+          className="bg-surface-2 text-fg border-line-bright cursor-pointer rounded border px-3 py-1.5 text-xs transition-colors hover:bg-[#18222c] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Add overlay
+        </button>
+        <input
+          ref={overlayInputRef}
+          type="file"
+          accept=".nii,.nii.gz,.gz"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void openOverlay(f);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          disabled={loading}
+          className="bg-accent cursor-pointer rounded border border-transparent px-3 py-1.5 text-xs font-semibold text-[#04201c] transition-colors hover:bg-[#3fe3ce] disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={onLoadDemo}
+        >
+          Load sample brain
+        </button>
+      </div>
     </header>
   );
 }
 
 function Brand(): React.ReactElement {
   return (
-    <div className="flex items-center gap-2 select-none">
+    <div className="flex flex-none items-center gap-2 select-none">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
         <circle cx="12" cy="12" r="9.2" stroke="#2dd4bf" strokeWidth="1.4" />
         <circle cx="12" cy="12" r="2.1" fill="#f6a623" />
@@ -163,7 +186,7 @@ function Brand(): React.ReactElement {
       <span className="text-xs font-semibold tracking-[0.14em] uppercase">
         <span className="text-accent">Reticle</span>
       </span>
-      <span className="text-faint font-mono text-[10px]">v0.1 · NIfTI · 3D</span>
+      <span className="text-faint hidden font-mono text-[10px] sm:inline">v0.1 · NIfTI · 3D</span>
     </div>
   );
 }
@@ -194,7 +217,7 @@ function SegControl<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="border-line-bright inline-flex overflow-hidden rounded border"
+      className="border-line-bright flex w-full overflow-hidden rounded border sm:inline-flex sm:w-auto"
     >
       {options.map((opt) => {
         const on = opt.value === value;
@@ -205,7 +228,7 @@ function SegControl<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(opt.value)}
             className={
-              "border-line cursor-pointer px-2.5 py-1.5 text-[11px] transition-colors not-first:border-l first:border-l-0 " +
+              "border-line flex-1 cursor-pointer px-2.5 py-1.5 text-[11px] transition-colors not-first:border-l first:border-l-0 sm:flex-none " +
               (on
                 ? "bg-accent font-semibold text-[#04201c]"
                 : "bg-surface-2 text-dim hover:bg-[#18222c]")
