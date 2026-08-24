@@ -73,7 +73,7 @@ function MobileViewportGrid({
         <>
           <div className="bg-panel border-line flex flex-none flex-wrap items-center gap-2 border px-3 py-2">
             <span className="text-faint font-mono text-[10px] tracking-[0.14em] uppercase">
-              Vista única
+              Single view
             </span>
             <div className="flex flex-1 flex-wrap gap-1.5">
               {ALL_PLANES.map((plane) => {
