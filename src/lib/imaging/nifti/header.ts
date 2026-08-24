@@ -100,6 +100,28 @@ function readZTerm(dv: DataView, base: number, max: number): string {
   return out;
 }
 
+/**
+ * NIfTI stores a magic string that distinguishes a self-contained volume from
+ * the header half of a detached `.hdr`/`.img` pair:
+ *
+ *   NIfTI-1 @344: "n+1\0" single-file, "ni1\0" detached pair
+ *   NIfTI-2 @4:   "n+2\0…" single-file, "ni2\0…" detached pair
+ *
+ * Only the *pair* magic is treated as a rejection. A zeroed magic means a bare
+ * ANALYZE 7.5 header, which the rest of the parser already tolerates.
+ */
+function isDetachedPairMagic(dv: DataView, isV2: boolean): boolean {
+  const base = isV2 ? 4 : 344;
+  if (dv.byteLength < base + 4) return false;
+  const expected = isV2 ? [0x6e, 0x69, 0x32] : [0x6e, 0x69, 0x31]; // "ni2" / "ni1"
+  return (
+    dv.getUint8(base) === expected[0] &&
+    dv.getUint8(base + 1) === expected[1] &&
+    dv.getUint8(base + 2) === expected[2] &&
+    dv.getUint8(base + 3) === 0
+  );
+}
+
 function checkDim(label: string, value: number): number {
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(`Invalid NIfTI header: ${label} is ${value}, expected a positive integer.`);
@@ -121,6 +143,14 @@ export function parseHeader(buf: ArrayBuffer): NiftiHeader {
   }
   const le = endian.littleEndian;
   const isV2 = endian.hdrSize === 540;
+
+  // Must precede the truncation check below — a detached header is *always*
+  // short on voxel data, and "truncated file" would misdescribe the cause.
+  if (isDetachedPairMagic(dv, isV2)) {
+    throw new Error(
+      "Detached .hdr/.img pairs are not supported — use a single .nii or .nii.gz file.",
+    );
+  }
 
   let datatypeCode: number;
   let bitpix: number;
