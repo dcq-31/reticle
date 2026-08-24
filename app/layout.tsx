@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Reticle — Neuroimaging Viewer",
-  description: "Browser-based NIfTI / DICOM viewer with 2D ortho and 3D volume rendering.",
+  description: "Browser-based NIfTI viewer with 2D ortho and 3D volume rendering.",
 };
 
 export const viewport: Viewport = {
