@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      # The README promises Node 20+; pin the floor so a regression past it fails here.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Types
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+  e2e:
+    name: E2E smoke
+    runs-on: ubuntu-latest
+    # Non-blocking for now: the suite needs a real browser and a dev server, so
+    # it is the most likely source of flakes. Drop this once it has proven stable.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # playwright.config.ts pins `channel: "chrome"`, so install real Chrome
+      # rather than the bundled chromium.
+      - name: Install Chrome
+        run: pnpm exec playwright install --with-deps chrome
+
+      - name: Playwright
+        run: pnpm e2e
+
+      # The config uses the `github` reporter in CI (no HTML report is written);
+      # `trace: on-first-retry` puts the useful artifacts in test-results/.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
