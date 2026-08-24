@@ -59,7 +59,7 @@ export function Toolbar(): React.ReactElement {
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className="text-dim order-2 basis-full flex-1 truncate font-mono text-[10px] leading-tight sm:order-none sm:basis-auto sm:text-[11px]"
+        className="text-dim order-2 flex-1 basis-full truncate font-mono text-[10px] leading-tight sm:order-none sm:basis-auto sm:text-[11px]"
       >
         {status}
       </div>
@@ -104,7 +104,7 @@ export function Toolbar(): React.ReactElement {
               className={
                 "border-line-bright rounded border px-3 py-1.5 text-[11px] font-semibold transition-colors " +
                 (layout === "volume"
-                  ? "bg-surface-2 text-dim hover:bg-[#18222c] hover:text-fg"
+                  ? "bg-surface-2 text-dim hover:text-fg hover:bg-[#18222c]"
                   : "bg-accent text-[#04201c] hover:bg-[#3fe3ce]")
               }
             >
@@ -119,7 +119,7 @@ export function Toolbar(): React.ReactElement {
                 "border-line-bright relative rounded border px-3 py-1.5 text-[11px] font-semibold transition-colors " +
                 (mobileLayersOpen
                   ? "bg-accent text-[#04201c] hover:bg-[#3fe3ce]"
-                  : "bg-surface-2 text-dim hover:bg-[#18222c] hover:text-fg")
+                  : "bg-surface-2 text-dim hover:text-fg hover:bg-[#18222c]")
               }
             >
               Overlays
@@ -133,7 +133,7 @@ export function Toolbar(): React.ReactElement {
           </>
         )}
       </div>
-      <div className="order-4 flex w-full flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:ml-auto">
+      <div className="order-4 flex w-full flex-wrap items-center gap-2 sm:order-none sm:ml-auto sm:w-auto">
         <button
           type="button"
           title="Reset views"

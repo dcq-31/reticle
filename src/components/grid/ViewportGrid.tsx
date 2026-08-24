@@ -85,10 +85,8 @@ function MobileViewportGrid({
                     aria-pressed={active}
                     onClick={() => setMobilePlane(plane)}
                     className={
-                      "border-line-bright flex-1 rounded border px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] " +
-                      (active
-                        ? "bg-accent font-semibold text-[#04201c]"
-                        : "bg-surface-2 text-dim")
+                      "border-line-bright flex-1 rounded border px-2 py-1.5 font-mono text-[10px] tracking-[0.12em] uppercase " +
+                      (active ? "bg-accent font-semibold text-[#04201c]" : "bg-surface-2 text-dim")
                     }
                   >
                     {PLANE_LABEL[plane]}
@@ -106,7 +104,7 @@ function MobileViewportGrid({
         <summary className="text-dim cursor-pointer list-none px-3 py-2 font-mono text-[10px] tracking-[0.14em] uppercase">
           Controls
         </summary>
-        <div className="max-h-[42svh] overflow-y-auto border-t border-line">
+        <div className="border-line max-h-[42svh] overflow-y-auto border-t">
           <ControlPanel showLayers={false} />
         </div>
       </details>

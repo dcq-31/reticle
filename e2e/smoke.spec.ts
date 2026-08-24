@@ -174,7 +174,9 @@ test("mobile layout stays compact and accepts touch drag", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Coronal" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sagittal" })).toBeVisible();
 
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth <= window.innerWidth,
+  );
   expect(overflow).toBe(true);
 
   const coronalButton = page.getByRole("button", { name: "Coronal" });
@@ -229,7 +231,10 @@ test("mobile overlays drawer exposes removal and closes after delete", async ({ 
   await page.waitForTimeout(400);
 
   await page.getByRole("button", { name: "Add overlay" }).click();
-  await page.locator('input[type="file"]').nth(1).setInputFiles(makeOverlayFile("mobile-overlay.nii"));
+  await page
+    .locator('input[type="file"]')
+    .nth(1)
+    .setInputFiles(makeOverlayFile("mobile-overlay.nii"));
   await page.waitForTimeout(400);
 
   await expect(page.getByRole("button", { name: "Overlays" })).toContainText("1");

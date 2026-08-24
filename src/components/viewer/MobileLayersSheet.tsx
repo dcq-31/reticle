@@ -46,7 +46,9 @@ export function MobileLayersSheet(): React.ReactElement | null {
               Overlays
             </div>
             <div className="text-fg truncate text-sm">
-              {overlayCount > 0 ? `${overlayCount} overlay${overlayCount === 1 ? "" : "s"}` : "Base layer"}
+              {overlayCount > 0
+                ? `${overlayCount} overlay${overlayCount === 1 ? "" : "s"}`
+                : "Base layer"}
             </div>
           </div>
           <button
@@ -59,11 +61,7 @@ export function MobileLayersSheet(): React.ReactElement | null {
           </button>
         </header>
         <div className="max-h-[calc(82svh-4rem)] overflow-y-auto px-3.5 py-3">
-          <LayerList
-            title="Layers"
-            variant="mobile"
-            onOverlayRemoved={() => setOpen(false)}
-          />
+          <LayerList title="Layers" variant="mobile" onOverlayRemoved={() => setOpen(false)} />
         </div>
       </section>
     </div>

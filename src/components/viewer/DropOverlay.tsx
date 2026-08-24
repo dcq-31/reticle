@@ -68,7 +68,9 @@ export function DropOverlay(): React.ReactElement | null {
       aria-hidden
     >
       <div className="border-accent max-w-[min(92vw,28rem)] rounded-2xl border-2 border-dashed bg-[rgba(12,18,24,0.7)] px-8 py-8 text-center md:px-16 md:py-12">
-        <h2 className="m-0 mb-1.5 text-sm font-semibold tracking-wide md:text-base">Drop a NIfTI volume</h2>
+        <h2 className="m-0 mb-1.5 text-sm font-semibold tracking-wide md:text-base">
+          Drop a NIfTI volume
+        </h2>
         <p className="text-dim m-0 text-[11px] md:text-xs">
           .nii or .nii.gz · hold <kbd className="text-accent">shift</kbd> to add as overlay
         </p>

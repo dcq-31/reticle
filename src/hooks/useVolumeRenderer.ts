@@ -254,7 +254,9 @@ export function useVolumeRenderer(
         .filter((p) => p.type === "touch")
         .slice(0, 2);
 
-    const touchGesture = (points: readonly PointerInfo[]): {
+    const touchGesture = (
+      points: readonly PointerInfo[],
+    ): {
       readonly centerX: number;
       readonly centerY: number;
       readonly distance: number;

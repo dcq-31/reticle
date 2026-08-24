@@ -28,7 +28,9 @@ interface RowProps {
 
 export function Row({ label, children, className }: RowProps): React.ReactElement {
   return (
-    <div className={`mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 ${className ?? ""}`}>
+    <div
+      className={`mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 ${className ?? ""}`}
+    >
       {label !== undefined ? (
         <label className="text-dim w-auto flex-none text-[11px] sm:w-15.5">{label}</label>
       ) : null}
