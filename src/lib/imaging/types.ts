@@ -30,9 +30,13 @@ export type AxisSign = readonly [-1 | 1, -1 | 1, -1 | 1];
 export interface VolumeStats {
   readonly min: number;
   readonly max: number;
-  /** 2nd percentile of intensity (excluding background) — used for auto windowing. */
+  /**
+   * 2nd percentile of intensity over *all* voxels — used for auto windowing.
+   * Background is not masked out, so on volumes with a large air region this
+   * sits at or near the background level.
+   */
   readonly p2: number;
-  /** 98th percentile of intensity. */
+  /** 98th percentile of intensity over all voxels. */
   readonly p98: number;
   /** 256-bin histogram over [min, max]. */
   readonly histogram: Uint32Array;
