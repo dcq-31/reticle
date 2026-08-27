@@ -185,8 +185,8 @@ export function parseHeader(buf: ArrayBuffer): NiftiHeader {
     srow = readSRows(dv, 280, 4, le);
     descrip = readZTerm(dv, 148, 80);
   } else {
-    datatypeCode = dv.getInt16(12, le);
-    bitpix = dv.getInt16(14, le);
+    datatypeCode = dv.getUint16(12, le);
+    bitpix = dv.getUint16(14, le);
     dim = readDim8(dv, 16, 8, le);
     pixdim = readPixdim8(dv, 104, 8, le);
     voxOffset = Number(dv.getBigInt64(168, le));
@@ -199,7 +199,7 @@ export function parseHeader(buf: ArrayBuffer): NiftiHeader {
     quatern = [dv.getFloat64(352, le), dv.getFloat64(360, le), dv.getFloat64(368, le)];
     qoffset = [dv.getFloat64(376, le), dv.getFloat64(384, le), dv.getFloat64(392, le)];
     srow = readSRows(dv, 400, 8, le);
-    descrip = "";
+    descrip = readZTerm(dv, 240, 80);
   }
 
   if (!sclSlope || !Number.isFinite(sclSlope)) sclSlope = 1;
