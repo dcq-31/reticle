@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { detectEndian, parseHeader } from "@/lib/imaging/nifti/header";
 
-import { buildNifti1Buffer } from "../../../fixtures/nifti";
+import { buildNifti1Buffer, buildNifti2Buffer } from "../../../fixtures/nifti";
 
 describe("detectEndian", () => {
   it("identifies little-endian NIfTI-1", () => {
@@ -141,5 +141,133 @@ describe("parseHeader validation", () => {
 
   it("accepts a file whose voxel data exactly fills the buffer", () => {
     expect(() => parseHeader(validBuffer())).not.toThrow();
+  });
+});
+
+describe("parseHeader (NIfTI-2)", () => {
+  it("reads dims, datatype, voxOffset, sclSlope from a NIfTI-2 buffer", () => {
+    const buf = buildNifti2Buffer({
+      nx: 4,
+      ny: 5,
+      nz: 6,
+      datatypeCode: 16,
+      data: new Float32Array(4 * 5 * 6),
+    });
+    const h = parseHeader(buf);
+    expect(h.isV2).toBe(true);
+    expect(h.littleEndian).toBe(true);
+    expect(h.nx).toBe(4);
+    expect(h.ny).toBe(5);
+    expect(h.nz).toBe(6);
+    expect(h.nt).toBe(1);
+    expect(h.datatypeCode).toBe(16);
+    expect(h.entry.name).toBe("float32");
+    expect(h.bitpix).toBe(32);
+    expect(h.voxOffset).toBe(540);
+    expect(h.sclSlope).toBe(1);
+  });
+
+  it("reads 4D dimensions correctly", () => {
+    const buf = buildNifti2Buffer({
+      nx: 32,
+      ny: 32,
+      nz: 20,
+      nt: 100,
+      datatypeCode: 16,
+      data: new Float32Array(32 * 32 * 20 * 100),
+    });
+    const h = parseHeader(buf);
+    expect(h.nt).toBe(100);
+    expect(h.dim[0]).toBe(4);
+    expect(h.dim[4]).toBe(100);
+  });
+
+  it("reads pixdim correctly", () => {
+    const buf = buildNifti2Buffer({
+      nx: 2,
+      ny: 2,
+      nz: 2,
+      datatypeCode: 16,
+      data: new Float32Array(8),
+      pixdim: [2.5, 2.5, 3.0],
+    });
+    const h = parseHeader(buf);
+    expect(h.pixdim[1]).toBeCloseTo(2.5);
+    expect(h.pixdim[2]).toBeCloseTo(2.5);
+    expect(h.pixdim[3]).toBeCloseTo(3.0);
+  });
+
+  it("reads descrip from the header", () => {
+    const buf = buildNifti2Buffer({
+      nx: 2,
+      ny: 2,
+      nz: 2,
+      datatypeCode: 16,
+      data: new Float32Array(8),
+      description: "test volume",
+    });
+    const h = parseHeader(buf);
+    expect(h.descrip).toBe("test volume");
+  });
+
+  it("reads an sform when present", () => {
+    const buf = buildNifti2Buffer({
+      nx: 2,
+      ny: 2,
+      nz: 2,
+      datatypeCode: 2,
+      data: new Uint8Array(8),
+      sform: [
+        [1.5, 0, 0, -10],
+        [0, 1.5, 0, -20],
+        [0, 0, 2, 5],
+      ],
+    });
+    const h = parseHeader(buf);
+    expect(h.sformCode).toBe(1);
+    expect(h.srow[0]).toEqual([1.5, 0, 0, -10]);
+    expect(h.srow[2]).toEqual([0, 0, 2, 5]);
+  });
+
+  it("treats scl_slope of 0 as 1 (NIfTI default)", () => {
+    const buf = buildNifti2Buffer({
+      nx: 2,
+      ny: 2,
+      nz: 2,
+      datatypeCode: 16,
+      data: new Float32Array(8),
+    });
+    new DataView(buf).setFloat64(176, 0, true);
+    const h = parseHeader(buf);
+    expect(h.sclSlope).toBe(1);
+  });
+
+  it("handles big-endian byte order", () => {
+    const buf = buildNifti2Buffer({
+      nx: 4,
+      ny: 4,
+      nz: 4,
+      datatypeCode: 16,
+      littleEndian: false,
+      data: new Float32Array(64),
+    });
+    const h = parseHeader(buf);
+    expect(h.isV2).toBe(true);
+    expect(h.littleEndian).toBe(false);
+    expect(h.nx).toBe(4);
+    expect(h.ny).toBe(4);
+    expect(h.nz).toBe(4);
+  });
+
+  it("rejects a truncated NIfTI-2 header", () => {
+    const buf = new ArrayBuffer(100);
+    new DataView(buf).setInt32(0, 540, true);
+    expect(() => parseHeader(buf)).toThrow(/Truncated NIfTI header/);
+  });
+
+  it("rejects a buffer too small for NIfTI-2", () => {
+    const buf = new ArrayBuffer(2);
+    new DataView(buf).setInt16(0, 0, true);
+    expect(() => parseHeader(buf)).toThrow(/Not a NIfTI/);
   });
 });
