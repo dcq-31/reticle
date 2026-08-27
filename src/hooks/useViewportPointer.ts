@@ -4,6 +4,7 @@ import { useEffect, type RefObject } from "react";
 
 import { type Plane } from "@/lib/geometry/planes";
 import { canvasToWorldVoxel, viewLayout, type ViewportState } from "@/lib/render/viewLayout";
+import { capturePointer } from "@/lib/utils/pointerCapture";
 import { clamp } from "@/lib/utils/clamp";
 import { keyState } from "@/lib/utils/keyState";
 import { useViewerStore } from "@/store";
@@ -132,7 +133,7 @@ export function useViewportPointer(
     const onPointerDown = (e: PointerEvent): void => {
       const { base } = useViewerStore.getState();
       if (!base) return;
-      canvas.setPointerCapture(e.pointerId);
+      capturePointer(canvas, e.pointerId);
       updatePointer(e);
       startX = e.clientX;
       startY = e.clientY;
