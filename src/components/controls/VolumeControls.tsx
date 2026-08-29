@@ -21,6 +21,8 @@ export function VolumeControls(): React.ReactElement {
   const density = useViewerStore((s) => s.density);
   const quality = useViewerStore((s) => s.quality);
   const shade = useViewerStore((s) => s.shade);
+  const thresholdSliderId = "volume-threshold-slider";
+  const densitySliderId = "volume-density-slider";
 
   const isIso = mode === "iso";
   const isMip = mode === "mip";
@@ -35,8 +37,9 @@ export function VolumeControls(): React.ReactElement {
           onChange={(v) => useViewerStore.getState().setVolumeMode(v)}
         />
       </Row>
-      <Row label={isIso ? "Iso level" : "Threshold"}>
+      <Row label={isIso ? "Iso level" : "Threshold"} labelFor={thresholdSliderId}>
         <input
+          id={thresholdSliderId}
           aria-label={isIso ? "Iso level" : "Threshold"}
           type="range"
           min={0}
@@ -50,8 +53,9 @@ export function VolumeControls(): React.ReactElement {
         </span>
       </Row>
       {isMip ? null : (
-        <Row label="Density">
+        <Row label="Density" labelFor={densitySliderId}>
           <input
+            id={densitySliderId}
             aria-label="Density"
             type="range"
             min={1}

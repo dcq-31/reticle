@@ -54,6 +54,7 @@ export function useViewportPointer(
     let touchStartCenterX = 0;
     let touchStartCenterY = 0;
     let touchStartLayout: ReturnType<typeof layoutNow> | null = null;
+    const capturedPointers = new Set<number>();
 
     const canvasRect = (): DOMRect => canvas.getBoundingClientRect();
 
@@ -80,6 +81,16 @@ export function useViewportPointer(
 
     const removePointer = (e: PointerEvent): void => {
       pointers.delete(e.pointerId);
+    };
+
+    const releasePointer = (pointerId: number): void => {
+      if (!capturedPointers.has(pointerId)) return;
+      capturedPointers.delete(pointerId);
+      try {
+        canvas.releasePointerCapture(pointerId);
+      } catch {
+        // Capture is best-effort; cleanup should not fail if the browser already released it.
+      }
     };
 
     const touchPointers = (): readonly { x: number; y: number }[] =>
@@ -133,7 +144,7 @@ export function useViewportPointer(
     const onPointerDown = (e: PointerEvent): void => {
       const { base } = useViewerStore.getState();
       if (!base) return;
-      capturePointer(canvas, e.pointerId);
+      if (capturePointer(canvas, e.pointerId)) capturedPointers.add(e.pointerId);
       updatePointer(e);
       startX = e.clientX;
       startY = e.clientY;
@@ -308,12 +319,14 @@ export function useViewportPointer(
 
     const onPointerUp = (e: PointerEvent): void => {
       removePointer(e);
+      releasePointer(e.pointerId);
       if (pointers.size < 2) touchStartLayout = null;
       endMode();
     };
 
     const onPointerCancel = (e: PointerEvent): void => {
       removePointer(e);
+      releasePointer(e.pointerId);
       if (pointers.size < 2) touchStartLayout = null;
       endMode();
     };
@@ -328,6 +341,7 @@ export function useViewportPointer(
     canvas.addEventListener("wheel", onWheel, { passive: false });
 
     return () => {
+      for (const pointerId of capturedPointers) releasePointer(pointerId);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);

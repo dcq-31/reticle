@@ -22,17 +22,20 @@ export function PanelGroup({ title, children, className }: PanelGroupProps): Rea
 
 interface RowProps {
   readonly label?: string;
+  readonly labelFor?: string;
   readonly children: ReactNode;
   readonly className?: string;
 }
 
-export function Row({ label, children, className }: RowProps): React.ReactElement {
+export function Row({ label, labelFor, children, className }: RowProps): React.ReactElement {
   return (
     <div
       className={`mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 ${className ?? ""}`}
     >
       {label !== undefined ? (
-        <label className="text-dim w-auto flex-none text-[11px] sm:w-15.5">{label}</label>
+        <label htmlFor={labelFor} className="text-dim w-auto flex-none text-[11px] sm:w-15.5">
+          {label}
+        </label>
       ) : null}
       {children}
     </div>

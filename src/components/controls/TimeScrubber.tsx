@@ -30,6 +30,7 @@ export function TimeScrubber(): React.ReactElement | null {
   const playing = wantsToPlay && nt > 1;
   const reducedMotion = useReducedMotion();
   const timerRef = useRef<number | null>(null);
+  const timeSliderId = "time-index-slider";
 
   useEffect(() => {
     if (!playing) return;
@@ -50,8 +51,9 @@ export function TimeScrubber(): React.ReactElement | null {
 
   return (
     <PanelGroup title="Volume / Time">
-      <Row label="Volume">
+      <Row label="Volume" labelFor={timeSliderId}>
         <input
+          id={timeSliderId}
           aria-label="Time index"
           type="range"
           min={0}

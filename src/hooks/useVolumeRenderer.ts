@@ -113,20 +113,28 @@ export function useVolumeRenderer(
     const base = snapshot.base;
     const stats = snapshot.stats;
     if (!base || !stats) return;
-    if (tex3dRef.current) tex3dRef.current.dispose();
-    const built = buildVolumeTexture(base.volume, stats, snapshot.timeIndex);
-    tex3dRef.current = built.texture;
-    dimsRef.current = [built.dims[0], built.dims[1], built.dims[2]];
+    if (tex3dRef.current) {
+      tex3dRef.current.dispose();
+      tex3dRef.current = null;
+    }
+    try {
+      const built = buildVolumeTexture(base.volume, stats, snapshot.timeIndex);
+      tex3dRef.current = built.texture;
+      dimsRef.current = [built.dims[0], built.dims[1], built.dims[2]];
 
-    bundle.mesh.geometry.dispose();
-    bundle.mesh.geometry = new BoxGeometry(built.aspect[0], built.aspect[1], built.aspect[2]);
-    bundle.uniforms.uData.value = built.texture;
-    bundle.uniforms.uAspect.value.set(built.aspect[0], built.aspect[1], built.aspect[2]);
-    bundle.uniforms.uVolMin.value = built.volMin;
-    bundle.uniforms.uVolRange.value = built.volRange;
+      bundle.mesh.geometry.dispose();
+      bundle.mesh.geometry = new BoxGeometry(built.aspect[0], built.aspect[1], built.aspect[2]);
+      bundle.uniforms.uData.value = built.texture;
+      bundle.uniforms.uAspect.value.set(built.aspect[0], built.aspect[1], built.aspect[2]);
+      bundle.uniforms.uVolMin.value = built.volMin;
+      bundle.uniforms.uVolRange.value = built.volRange;
 
-    syncDisplay();
-    syncSettings();
+      syncDisplay();
+      syncSettings();
+    } catch (err) {
+      bundle.uniforms.uData.value = null;
+      console.error("[useVolumeRenderer] texture rebuild failed", err);
+    }
   }, [storeAdapter, syncDisplay, syncSettings]);
 
   /** Render one frame; lowers step count if mid-interaction, then restores. */
@@ -234,7 +242,18 @@ export function useVolumeRenderer(
     let touchStartCenterX = 0;
     let touchStartCenterY = 0;
     const pointers = new Map<number, PointerInfo>();
+    const capturedPointers = new Set<number>();
     const previousTouches = new Map<number, { x: number; y: number }>();
+
+    const releasePointer = (pointerId: number): void => {
+      if (!capturedPointers.has(pointerId)) return;
+      capturedPointers.delete(pointerId);
+      try {
+        canvas.releasePointerCapture(pointerId);
+      } catch {
+        // Pointer capture is an optimization: cleanup must not crash if it is already gone.
+      }
+    };
 
     const syncPointer = (e: PointerEvent): void => {
       pointers.set(e.pointerId, {
@@ -286,7 +305,12 @@ export function useVolumeRenderer(
 
     const onPointerDown = (e: PointerEvent): void => {
       syncPointer(e);
-      canvas.setPointerCapture(e.pointerId);
+      try {
+        canvas.setPointerCapture(e.pointerId);
+        capturedPointers.add(e.pointerId);
+      } catch {
+        // Synthetic or already-cancelled pointers can make capture fail.
+      }
       interactingRef.current = true;
       canvas.classList.add("dragging");
 
@@ -371,6 +395,7 @@ export function useVolumeRenderer(
 
     const endPointer = (e: PointerEvent): void => {
       removePointer(e);
+      releasePointer(e.pointerId);
       if (e.pointerType === "touch" && touchPoints().length < 2) {
         pinchActive = false;
       }
@@ -403,6 +428,7 @@ export function useVolumeRenderer(
 
     const onPointerCancel = (e: PointerEvent): void => {
       removePointer(e);
+      releasePointer(e.pointerId);
       if (e.pointerType === "touch" && touchPoints().length < 2) {
         pinchActive = false;
       }
@@ -419,6 +445,13 @@ export function useVolumeRenderer(
     canvas.addEventListener("contextmenu", onContextMenu);
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => {
+      for (const pointerId of capturedPointers) releasePointer(pointerId);
+      if (idleTimerRef.current !== null) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      interactingRef.current = false;
+      canvas.classList.remove("dragging");
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", endPointer);

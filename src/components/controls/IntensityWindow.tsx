@@ -6,7 +6,7 @@ import { fmt } from "@/lib/utils/fmt";
 import { useActiveLayer, useActiveLayerStats, useViewerStore } from "@/store";
 
 export function IntensityWindow(): React.ReactElement | null {
-  const layer = useActiveLayer();
+const layer = useActiveLayer();
   const stats = useActiveLayerStats();
   if (!layer) return null;
   const win = layer.display.win;
@@ -16,11 +16,15 @@ export function IntensityWindow(): React.ReactElement | null {
   const setW = (level: number, width: number) =>
     useViewerStore.getState().setActiveWindow({ level, width });
 
+  const levelSliderId = "window-level-slider";
+  const widthSliderId = "window-width-slider";
+
   return (
     <PanelGroup title="Intensity window">
       <Histogram />
-      <Row label="Level" className="mt-2.5">
+      <Row label="Level" labelFor={levelSliderId} className="mt-2.5">
         <input
+          id={levelSliderId}
           aria-label="Window level"
           type="range"
           min={0}
@@ -42,8 +46,9 @@ export function IntensityWindow(): React.ReactElement | null {
           className="reticle-num w-[64px] flex-none"
         />
       </Row>
-      <Row label="Window">
+      <Row label="Window" labelFor={widthSliderId}>
         <input
+          id={widthSliderId}
           aria-label="Window width"
           type="range"
           min={0}

@@ -166,9 +166,9 @@ function compositeOverlay(
     let oz = rowCz + m2h * hStart;
 
     for (let px = 0; px < sizeH; px++) {
-      const xi = (ox + 0.5) | 0; // nearest-neighbor
-      const yi = (oy + 0.5) | 0;
-      const zi = (oz + 0.5) | 0;
+      const xi = Math.round(ox);
+      const yi = Math.round(oy);
+      const zi = Math.round(oz);
       if (xi >= 0 && xi < onx && yi >= 0 && yi < ony && zi >= 0 && zi < onz) {
         const raw = data[xi + yi * st1 + zi * st2 + otBase]!;
         const v = raw * slope + inter;
