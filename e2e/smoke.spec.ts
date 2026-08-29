@@ -169,7 +169,9 @@ test("mobile layout stays compact and accepts touch drag", async ({ page }) => {
   await expect(page.getByRole("group", { name: "Layout" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Grid" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Single" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "3D", exact: true })).toBeVisible();
+  // The button reads "3D" but carries aria-label="Switch to 3D", and the
+  // aria-label is the accessible name — match that, not the visible text.
+  await expect(page.getByRole("button", { name: "Switch to 3D" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Axial" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Coronal" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sagittal" })).toBeVisible();
@@ -215,9 +217,9 @@ test("mobile layout stays compact and accepts touch drag", async ({ page }) => {
   }
   await page.waitForTimeout(150);
 
-  await page.getByRole("button", { name: "3D", exact: true }).click();
+  await page.getByRole("button", { name: "Switch to 3D" }).click();
   await expect(page.locator('[aria-label="3D volume view"] canvas')).toBeVisible();
-  await page.getByRole("button", { name: "Slices", exact: true }).click();
+  await page.getByRole("button", { name: "Return to slices" }).click();
   await expect(page.locator('[aria-label="Coronal view"] canvas')).toBeVisible();
 
   expect(errors, errors.join("\n")).toEqual([]);
