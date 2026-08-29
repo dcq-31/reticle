@@ -38,7 +38,6 @@ export function useFileOpen(): FileOpenHandle {
       const result = await getViewerLoadService().load({ file, kind });
       if (result.status === "stale") {
         superseded = true;
-        store.setJobStatus(result.status);
         return;
       }
       if (result.status === "aborted") {

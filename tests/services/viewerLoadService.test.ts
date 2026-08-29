@@ -5,13 +5,13 @@ import { ViewerLoadService } from "@/services/viewerLoadService";
 
 const mocks = vi.hoisted(() => ({
   resolveAdapterMock: vi.fn(),
-  loadFileMock: vi.fn(),
+  loadWithAdapterMock: vi.fn(),
   loadVolumesInWorkerMock: vi.fn(),
 }));
 
 vi.mock("@/lib/imaging/loader", () => ({
   resolveAdapter: mocks.resolveAdapterMock,
-  loadFile: mocks.loadFileMock,
+  loadWithAdapter: mocks.loadWithAdapterMock,
 }));
 
 vi.mock("@/workers/niftiLoader", () => ({
@@ -62,7 +62,7 @@ describe("ViewerLoadService", () => {
 
   beforeEach(() => {
     mocks.resolveAdapterMock.mockReset();
-    mocks.loadFileMock.mockReset();
+    mocks.loadWithAdapterMock.mockReset();
     mocks.loadVolumesInWorkerMock.mockReset();
   });
 
@@ -75,10 +75,29 @@ describe("ViewerLoadService", () => {
     const result = await service.load({ file, kind: "base" });
 
     expect(mocks.loadVolumesInWorkerMock).toHaveBeenCalledOnce();
-    expect(mocks.loadFileMock).not.toHaveBeenCalled();
+    expect(mocks.loadWithAdapterMock).not.toHaveBeenCalled();
     expect(result.status).toBe("success");
     expect(result.sourceFormat).toBe("nifti");
     expect(result.volumes[0]?.volume.id).toBe("vol-worker");
+  });
+
+  it("reuses the resolved adapter for main-thread adapters", async () => {
+    const inlineAdapter: FormatAdapter = {
+      ...adapter,
+      execution: "main",
+    };
+    const file = new File([new Uint8Array([1, 2, 3])], "brain.nii");
+    mocks.resolveAdapterMock.mockResolvedValue({ adapter: inlineAdapter, head: new Uint8Array([1]) });
+    mocks.loadWithAdapterMock.mockResolvedValue([makeVolume("vol-main")]);
+
+    const service = new ViewerLoadService();
+    const result = await service.load({ file, kind: "base" });
+
+    expect(mocks.resolveAdapterMock).toHaveBeenCalledOnce();
+    expect(mocks.loadWithAdapterMock).toHaveBeenCalledOnce();
+    expect(mocks.loadWithAdapterMock).toHaveBeenCalledWith(file, inlineAdapter, expect.any(Object));
+    expect(result.status).toBe("success");
+    expect(result.volumes[0]?.volume.id).toBe("vol-main");
   });
 
   it("marks older results as stale when a newer request wins", async () => {

@@ -27,5 +27,13 @@ export async function resolveAdapter(file: File): Promise<ResolvedAdapter> {
  */
 export async function loadFile(file: File, signal?: AbortSignal): Promise<readonly Volume[]> {
   const { adapter } = await resolveAdapter(file);
+  return loadWithAdapter(file, adapter, signal);
+}
+
+export async function loadWithAdapter(
+  file: File,
+  adapter: FormatAdapter,
+  signal?: AbortSignal,
+): Promise<readonly Volume[]> {
   return adapter.load(file, signal);
 }

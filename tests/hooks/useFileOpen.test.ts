@@ -111,13 +111,13 @@ describe("useFileOpen", () => {
     expect(state.loading).toBe(false);
   });
 
-  it("leaves the spinner to the newer load when a result comes back stale", async () => {
+  it("leaves the active loading status untouched when a result comes back stale", async () => {
     mocks.loadMock.mockResolvedValue(result(null, { status: "stale" }));
 
     await open().openBase(file());
 
     const state = useViewerStore.getState();
-    expect(state.jobStatus).toBe("stale");
+    expect(state.jobStatus).toBe("loading");
     // The superseding load owns the spinner — clearing it here would flicker
     // the toolbar back to idle while a newer parse is still running.
     expect(state.loading).toBe(true);

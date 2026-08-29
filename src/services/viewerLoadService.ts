@@ -1,6 +1,6 @@
 "use client";
 
-import { loadFile, resolveAdapter } from "@/lib/imaging/loader";
+import { loadWithAdapter, resolveAdapter } from "@/lib/imaging/loader";
 import type { Volume, VolumeSource } from "@/lib/imaging/types";
 import { loadVolumesInWorker } from "@/workers/niftiLoader";
 
@@ -43,7 +43,7 @@ export class ViewerLoadService {
       const volumes =
         adapter.execution === "worker"
           ? await loadVolumesInWorker(request.file, adapter.id, controller.signal)
-          : await loadFile(request.file, controller.signal);
+          : await loadWithAdapter(request.file, adapter, controller.signal);
 
       if (requestId !== this.activeRequestId) {
         return {
