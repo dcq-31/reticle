@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { ViewportGrid } from "@/components/grid/ViewportGrid";
 import { DropOverlay } from "@/components/viewer/DropOverlay";
+import { ErrorBoundary } from "@/components/viewer/ErrorBoundary";
 import { MobileLayersSheet } from "@/components/viewer/MobileLayersSheet";
 import { StatusBar } from "@/components/viewer/StatusBar";
 import { Toast } from "@/components/viewer/Toast";
@@ -27,13 +28,15 @@ export default function Viewer(): React.ReactElement {
   }, []);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden">
-      <Toolbar />
-      <ViewportGrid />
-      <StatusBar />
-      <MobileLayersSheet />
-      <DropOverlay />
-      <Toast />
-    </div>
+    <ErrorBoundary>
+      <div className="flex min-h-[100dvh] flex-col overflow-x-hidden">
+        <Toolbar />
+        <ViewportGrid />
+        <StatusBar />
+        <MobileLayersSheet />
+        <DropOverlay />
+        <Toast />
+      </div>
+    </ErrorBoundary>
   );
 }

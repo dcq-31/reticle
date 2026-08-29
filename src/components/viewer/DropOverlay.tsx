@@ -65,9 +65,12 @@ export function DropOverlay(): React.ReactElement | null {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0"
       style={{ background: "rgba(5,9,12,0.86)", backdropFilter: "blur(3px)" }}
-      aria-hidden
     >
-      <div className="border-accent max-w-[min(92vw,28rem)] rounded-2xl border-2 border-dashed bg-[rgba(12,18,24,0.7)] px-8 py-8 text-center md:px-16 md:py-12">
+      <div
+        role="status"
+        aria-live="assertive"
+        className="border-accent max-w-[min(92vw,28rem)] rounded-2xl border-2 border-dashed bg-[rgba(12,18,24,0.7)] px-8 py-8 text-center md:px-16 md:py-12"
+      >
         <h2 className="m-0 mb-1.5 text-sm font-semibold tracking-wide md:text-base">
           Drop a NIfTI volume
         </h2>
