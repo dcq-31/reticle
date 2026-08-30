@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const isCI = !!process.env.CI;
+const playwrightPort = 3100;
+const playwrightBaseUrl = `http://localhost:${playwrightPort}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -10,7 +12,7 @@ export default defineConfig({
   ...(isCI ? { workers: 1 } : {}),
   reporter: isCI ? "github" : "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: playwrightBaseUrl,
     trace: "on-first-retry",
   },
   projects: [
@@ -23,8 +25,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000",
+    command: `npx next dev --port ${playwrightPort}`,
+    url: playwrightBaseUrl,
     reuseExistingServer: !isCI,
     timeout: 120_000,
   },
