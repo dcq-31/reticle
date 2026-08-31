@@ -69,7 +69,10 @@ export function VolumeView(): React.ReactElement {
 
 function Fallback(): React.ReactElement {
   return (
-    <div className="text-dim absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-xs">
+    <div
+      role="alert"
+      className="text-dim absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-xs"
+    >
       <h3 className="text-danger m-0 text-sm tracking-[0.04em]">3D unavailable</h3>
       <p className="m-0">
         This view needs WebGL2 with 3D-texture support. Try a recent desktop browser with hardware

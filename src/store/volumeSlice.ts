@@ -237,7 +237,12 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     statsVersion: 0,
 
     setBase: (volume) => {
-      const built = buildLayer(volume, "base", { statsByKey: {} }, get().statsVersion, 0);
+      const state = get();
+      const built = buildLayer(volume, "base", state.derivedCache, state.statsVersion, 0);
+      const nextCache =
+        state.base && state.base.id !== built.layer.id
+          ? evictVolumeStats(built.derivedCache, state.base.id)
+          : built.derivedCache;
       const document: ViewerDocument = {
         layers: [built.layer],
         layerRoles: { [built.layer.id]: "base" },
@@ -247,7 +252,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
         ...rebuildCompatLayers(document),
         activeLayerId: built.layer.id,
         cross: centerCrosshair(volume),
-        derivedCache: built.derivedCache,
+        derivedCache: nextCache,
         statsVersion: built.statsVersion,
       });
     },

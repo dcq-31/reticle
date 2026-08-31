@@ -3,8 +3,8 @@ import {
   BoxGeometry,
   DataTexture,
   GLSL3,
-  LinearFilter,
   Mesh,
+  NearestFilter,
   RGBAFormat,
   ShaderMaterial,
   UnsignedByteType,
@@ -54,8 +54,8 @@ export function createVolumeMaterial(initialLut: Uint8Array): VolumeMaterialBund
     RGBAFormat,
     UnsignedByteType,
   );
-  lutTexture.minFilter = LinearFilter;
-  lutTexture.magFilter = LinearFilter;
+  lutTexture.minFilter = NearestFilter;
+  lutTexture.magFilter = NearestFilter;
   lutTexture.needsUpdate = true;
 
   const uniforms: VolumeUniforms = {

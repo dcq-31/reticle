@@ -13,6 +13,7 @@ import {
 
 const CANVAS_W = 600;
 const CANVAS_H = 96;
+const MAX_DPR = 2;
 /** Pixel tolerance for picking up a draggable window edge. */
 const EDGE_HIT_PX = 8;
 
@@ -125,6 +126,7 @@ function drawHistogram(
   stats: ReturnType<typeof useActiveLayerStats>,
 ): void {
   if (!canvas) return;
+   syncCanvasBackingStore(canvas);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const W = canvas.width;
@@ -170,4 +172,16 @@ function drawHistogram(
   ctx.lineTo(xc, H);
   ctx.stroke();
   ctx.setLineDash([]);
+}
+
+function syncCanvasBackingStore(canvas: HTMLCanvasElement): void {
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width || CANVAS_W));
+  const height = Math.max(1, Math.round(rect.height || CANVAS_H));
+  const dpr = typeof window === "undefined" ? 1 : Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  const nextWidth = Math.round(width * dpr);
+  const nextHeight = Math.round(height * dpr);
+  if (canvas.width === nextWidth && canvas.height === nextHeight) return;
+  canvas.width = nextWidth;
+  canvas.height = nextHeight;
 }

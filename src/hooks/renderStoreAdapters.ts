@@ -35,6 +35,14 @@ export interface VolumeRenderSnapshot {
   readonly resetSeq: number;
 }
 
+interface DisplaySnapshot {
+  readonly level: number;
+  readonly width: number;
+  readonly cmap: string;
+  readonly invert: boolean;
+  readonly lut: Uint8Array | null;
+}
+
 export interface VolumeChange {
   /** True only for a base-volume swap, not a timepoint or stats change. */
   readonly volumeChanged: boolean;
@@ -127,7 +135,21 @@ export function createVolumeRenderStoreAdapter(): VolumeRenderStoreAdapter {
         { equalityFn: shallowEq },
       ),
     subscribeDisplay: (onChange) =>
-      useViewerStore.subscribe((state) => state.base?.display, onChange),
+      useViewerStore.subscribe(
+        (state): DisplaySnapshot | null => {
+          const display = state.base?.display;
+          if (!display) return null;
+          return {
+            level: display.win.level,
+            width: display.win.width,
+            cmap: display.cmap,
+            invert: display.invert,
+            lut: display.lut,
+          };
+        },
+        onChange,
+        { equalityFn: eqDisplaySnapshot },
+      ),
     subscribeSettings: (onChange) =>
       useViewerStore.subscribe(
         (state) => ({
@@ -155,4 +177,16 @@ function shallowEq<T extends Record<string, unknown>>(a: T, b: T): boolean {
   if (ka.length !== kb.length) return false;
   for (const k of ka) if (a[k] !== b[k]) return false;
   return true;
+}
+
+function eqDisplaySnapshot(a: DisplaySnapshot | null, b: DisplaySnapshot | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.level === b.level &&
+    a.width === b.width &&
+    a.cmap === b.cmap &&
+    a.invert === b.invert &&
+    a.lut === b.lut
+  );
 }

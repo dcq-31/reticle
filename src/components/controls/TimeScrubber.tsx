@@ -11,13 +11,15 @@ const FRAME_MS_REDUCED = 350;
 
 /** Subscribe to `prefers-reduced-motion` via `useSyncExternalStore`. */
 function useReducedMotion(): boolean {
+  const query = "(prefers-reduced-motion: reduce)";
   return useSyncExternalStore(
     (cb) => {
-      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      if (typeof window === "undefined") return () => {};
+      const mq = window.matchMedia(query);
       mq.addEventListener("change", cb);
       return () => mq.removeEventListener("change", cb);
     },
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => (typeof window === "undefined" ? false : window.matchMedia(query).matches),
     () => false,
   );
 }
