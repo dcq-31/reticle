@@ -134,6 +134,38 @@ describe("volume render adapter — getSnapshot", () => {
   });
 });
 
+describe("volume render adapter — subscribeDisplay", () => {
+  it("does not fire when only an overlay display changes", () => {
+    const base = makeVolume("base.nii");
+    const overlay = makeVolume("overlay.nii");
+    const store = useViewerStore.getState();
+    store.setBase(base);
+    store.addOverlay(overlay);
+
+    const adapter = createVolumeRenderStoreAdapter();
+    const onChange = vi.fn();
+    track(adapter.subscribeDisplay(onChange));
+
+    store.setLayerOpacity(overlay.id, 0.3);
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("fires when the base display changes", () => {
+    const base = makeVolume("base.nii");
+    const store = useViewerStore.getState();
+    store.setBase(base);
+
+    const adapter = createVolumeRenderStoreAdapter();
+    const onChange = vi.fn();
+    track(adapter.subscribeDisplay(onChange));
+
+    store.setActiveWindow({ level: 12, width: 24 });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("slice render adapter", () => {
   it("notifies the offscreen pass when its own slice axis moves", () => {
     const adapter = createSliceRenderStoreAdapter("s");

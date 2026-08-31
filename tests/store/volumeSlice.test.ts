@@ -66,6 +66,23 @@ describe("setBase", () => {
     expect(state.getStatsForVolume(second.id, 0)).not.toBeNull();
     expect(state.getStatsForVolume(first.id, 0)).toBeNull();
   });
+
+  it("reuses an already-warmed cache entry for the same base volume", () => {
+    const volume = makeVolume("base4d.nii", { nt: 3 });
+    const store = useViewerStore.getState();
+    store.setBase(volume);
+    store.setCross({ t: 2 });
+
+    const warmedCache = useViewerStore.getState().derivedCache;
+    const warmedVersion = useViewerStore.getState().statsVersion;
+
+    store.setBase(volume);
+
+    const state = useViewerStore.getState();
+    expect(state.derivedCache).toBe(warmedCache);
+    expect(state.statsVersion).toBe(warmedVersion);
+    expect(state.getStatsForVolume(volume.id, 2)).not.toBeNull();
+  });
 });
 
 describe("addOverlay", () => {
