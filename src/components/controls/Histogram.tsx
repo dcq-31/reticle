@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { fmt } from "@/lib/utils/fmt";
 import {
@@ -22,10 +22,25 @@ export function Histogram(): React.ReactElement | null {
   const stats = useActiveLayerStats();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Redraw whenever stats or window change.
-  useEffect(() => {
+  const draw = useCallback(() => {
     drawHistogram(canvasRef.current, layer, stats);
   }, [layer, stats]);
+
+  // Redraw whenever stats or window change.
+  useEffect(() => {
+    draw();
+  }, [draw]);
+
+  // Redraw on container resize.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const ro = new ResizeObserver(() => draw());
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [draw]);
 
   if (!layer || !stats) return null;
 

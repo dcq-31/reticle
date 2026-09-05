@@ -49,6 +49,15 @@ export function renderSliceToImageData(inputs: SliceRenderInputs, imageData: Ima
     );
   }
 
+  const nSlices = volume.dimsWorld[geom.sliceAxis]!;
+  if (slice < 0 || slice >= nSlices) {
+    throw new RangeError(`slice ${slice} out of range (0..${nSlices - 1})`);
+  }
+  const lastT = Math.max(1, volume.nt) - 1;
+  if (timeIndex < 0 || timeIndex > lastT) {
+    throw new RangeError(`timeIndex ${timeIndex} out of range (0..${lastT})`);
+  }
+
   renderBasePass(imageData, volume, geom, sizeH, sizeV, winLow, winWidth, lut, slice, timeIndex);
 
   if (overlays && overlays.length > 0) {

@@ -157,7 +157,8 @@ export function useVolumeRenderer(
       bundle.uniforms.uSteps.value = fullSteps;
       if (idleTimerRef.current !== null) clearTimeout(idleTimerRef.current);
       idleTimerRef.current = window.setTimeout(() => {
-        if (!interactingRef.current) schedRef.current?.request();
+        interactingRef.current = false;
+        schedRef.current?.request();
       }, INTERACTION_IDLE_MS);
     }
   }, []);
@@ -179,13 +180,14 @@ export function useVolumeRenderer(
     }
 
     const initialLut = storeAdapter.getSnapshot().base?.display.lut ?? buildLUT("gray", false);
-    let bundle: VolumeMaterialBundle | null;
+    let bundle: VolumeMaterialBundle | null = null;
     let renderer: WebGLRenderer;
     try {
       bundle = createVolumeMaterial(initialLut);
       renderer = new WebGLRenderer({ canvas, context: gl, antialias: false, alpha: true });
       renderer.setClearColor(0x000000, 0);
     } catch (err) {
+      bundle?.dispose();
       console.error("[useVolumeRenderer] init failed", err);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot init failure, no cascade.
       setFailed(true);
@@ -468,6 +470,10 @@ export function useVolumeRenderer(
       if (volumeChanged) resetOrbit(orbitRef.current);
       schedRef.current?.request();
     });
+    const unsubTimeIndex = storeAdapter.subscribeTimeIndex(() => {
+      rebuildTexture();
+      schedRef.current?.request();
+    });
     const unsubDisplay = storeAdapter.subscribeDisplay(() => syncDisplay());
     const unsubSettings = storeAdapter.subscribeSettings(() => syncSettings());
     const unsubReset = storeAdapter.subscribeReset(() => {
@@ -476,6 +482,7 @@ export function useVolumeRenderer(
     });
     return () => {
       unsubVolume();
+      unsubTimeIndex();
       unsubDisplay();
       unsubSettings();
       unsubReset();

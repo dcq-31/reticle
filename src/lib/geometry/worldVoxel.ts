@@ -36,6 +36,17 @@ export interface ProbeResult {
  * the same frame the crosshair lives in.
  */
 export function probe(vol: Volume, r: number, a: number, s: number, t = 0): ProbeResult {
+  if (
+    r < 0 || r >= vol.dimsWorld[0] ||
+    a < 0 || a >= vol.dimsWorld[1] ||
+    s < 0 || s >= vol.dimsWorld[2]
+  ) {
+    throw new RangeError(`probe coordinates out of range: (${r}, ${a}, ${s})`);
+  }
+  const lastT = Math.max(1, vol.nt) - 1;
+  if (t < 0 || t > lastT) {
+    throw new RangeError(`probe time index out of range: ${t} (max ${lastT})`);
+  }
   const cw: readonly [number, number, number] = [r, a, s];
   const vx: [number, number, number] = [0, 0, 0];
   for (let w = 0; w < 3; w++) {

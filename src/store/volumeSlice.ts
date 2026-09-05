@@ -59,10 +59,9 @@ export interface VolumeActions {
 
 export type VolumeSlice = VolumeState & VolumeActions;
 
-const EMPTY_DOCUMENT: ViewerDocument = {
-  layers: [],
-  layerRoles: {},
-};
+function emptyDocument(): ViewerDocument {
+  return { layers: [], layerRoles: {} };
+}
 
 function defaultBaseDisplay(
   stats: NonNullable<ReturnType<typeof getCachedVolumeStats>>,
@@ -227,7 +226,7 @@ type GetFn = () => VolumeSlice;
 
 export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
   return {
-    document: EMPTY_DOCUMENT,
+    document: emptyDocument(),
     base: null,
     overlays: [],
     activeLayerId: null,
@@ -239,10 +238,12 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     setBase: (volume) => {
       const state = get();
       const built = buildLayer(volume, "base", state.derivedCache, state.statsVersion, 0);
-      const nextCache =
-        state.base && state.base.id !== built.layer.id
-          ? evictVolumeStats(built.derivedCache, state.base.id)
-          : built.derivedCache;
+      const baseKey = makeDerivedVolumeCacheKey(built.layer.id, 0);
+      const nextCache: DerivedVolumeCache = {
+        statsByKey: {
+          [baseKey]: built.derivedCache.statsByKey[baseKey]!,
+        },
+      };
       const document: ViewerDocument = {
         layers: [built.layer],
         layerRoles: { [built.layer.id]: "base" },
@@ -259,6 +260,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
 
     addOverlay: (volume) => {
       const state = get();
+      if (state.document.layers.some((l) => l.id === volume.id)) return;
       const built = buildLayer(
         volume,
         "overlay",
@@ -286,7 +288,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
       set((state) => {
         if (state.base?.id === layerId) {
           return {
-            document: EMPTY_DOCUMENT,
+            document: emptyDocument(),
             base: null,
             overlays: [],
             activeLayerId: null,
@@ -331,7 +333,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
 
     clearVolumes: () => {
       set({
-        document: EMPTY_DOCUMENT,
+        document: emptyDocument(),
         base: null,
         overlays: [],
         activeLayerId: null,
@@ -344,6 +346,14 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     setCross: (partial) => {
       const state = get();
       const cross = clampToVolume({ ...state.cross, ...partial }, state.base);
+      if (
+        cross.r === state.cross.r &&
+        cross.a === state.cross.a &&
+        cross.s === state.cross.s &&
+        cross.t === state.cross.t
+      ) {
+        return;
+      }
       if (cross.t === state.cross.t) {
         set({ cross });
         return;
@@ -468,11 +478,10 @@ function mutateLayerDisplay(
 export function selectLayerStats(
   state: Pick<
     VolumeSlice,
-    "statsVersion" | "cross" | "derivedCache" | "base" | "overlays" | "activeLayerId"
+    "cross" | "derivedCache" | "base" | "overlays" | "activeLayerId"
   >,
   layerId?: LayerId | null,
 ) {
-  void state.statsVersion;
   const targetId = layerId ?? state.activeLayerId;
   const layer =
     (targetId
