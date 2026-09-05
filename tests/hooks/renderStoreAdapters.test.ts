@@ -50,18 +50,6 @@ afterEach(() => {
 });
 
 describe("volume render adapter — subscribeVolume", () => {
-  it("reports volumeChanged: false when only the timepoint moves", () => {
-    const adapter = createVolumeRenderStoreAdapter();
-    useViewerStore.getState().setBase(makeVolume("base4d.nii", 4));
-
-    const changes: VolumeChange[] = [];
-    track(adapter.subscribeVolume((c) => changes.push(c)));
-
-    useViewerStore.getState().setCross({ t: 1 });
-
-    expect(changes).toEqual([{ volumeChanged: false }]);
-  });
-
   it("reports volumeChanged: true when the base volume is swapped", () => {
     const adapter = createVolumeRenderStoreAdapter();
     useViewerStore.getState().setBase(makeVolume("first.nii"));
@@ -74,16 +62,52 @@ describe("volume render adapter — subscribeVolume", () => {
     expect(changes).toEqual([{ volumeChanged: true }]);
   });
 
+  it("does not fire on in-plane crosshair movement", () => {
+    const adapter = createVolumeRenderStoreAdapter();
+    useViewerStore.getState().setBase(makeVolume("base.nii"));
+
+    const onChange = vi.fn();
+    track(adapter.subscribeVolume(onChange));
+
+    useViewerStore.getState().setCross({ r: 1, a: 2 });
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does not fire on timepoint change", () => {
+    const adapter = createVolumeRenderStoreAdapter();
+    useViewerStore.getState().setBase(makeVolume("base4d.nii", 4));
+
+    const onChange = vi.fn();
+    track(adapter.subscribeVolume(onChange));
+
+    useViewerStore.getState().setCross({ t: 1 });
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("volume render adapter — subscribeTimeIndex", () => {
+  it("fires on timepoint change", () => {
+    const adapter = createVolumeRenderStoreAdapter();
+    useViewerStore.getState().setBase(makeVolume("base4d.nii", 4));
+
+    const onChange = vi.fn();
+    track(adapter.subscribeTimeIndex(onChange));
+
+    useViewerStore.getState().setCross({ t: 1 });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it("fires exactly once per timepoint step", () => {
-    // Regression: reading stats used to mutate the store mid-notification,
-    // re-firing this subscription and rebuilding the 3D texture twice.
     const adapter = createVolumeRenderStoreAdapter();
     useViewerStore.getState().setBase(makeVolume("base4d.nii", 4));
 
     const onChange = vi.fn();
     track(
-      adapter.subscribeVolume((change) => {
-        onChange(change);
+      adapter.subscribeTimeIndex(() => {
+        onChange();
         adapter.getSnapshot();
       }),
     );
@@ -98,7 +122,7 @@ describe("volume render adapter — subscribeVolume", () => {
     useViewerStore.getState().setBase(makeVolume("base.nii"));
 
     const onChange = vi.fn();
-    track(adapter.subscribeVolume(onChange));
+    track(adapter.subscribeTimeIndex(onChange));
 
     useViewerStore.getState().setCross({ r: 1, a: 2 });
 
