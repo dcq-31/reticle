@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 export interface ObservedSize {
   readonly width: number;
@@ -9,13 +9,17 @@ export interface ObservedSize {
 
 /**
  * Observe the bounding rect of `ref.current` and fire `onResize` on every
- * change (including the initial mount). Returns nothing — pass a stable
- * callback (or wrap with `useCallback`) to avoid re-subscribing.
+ * change (including the initial mount). Safe to call with an unstable callback —
+ * the latest version is always invoked without re-subscribing the observer.
  */
 export function useResizeObserver(
   ref: RefObject<Element | null>,
   onResize: (size: ObservedSize) => void,
 ): void {
+  const onResizeRef = useRef(onResize);
+  useEffect(() => {
+    onResizeRef.current = onResize;
+  });
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -23,9 +27,9 @@ export function useResizeObserver(
       const entry = entries[0];
       if (!entry) return;
       const { width, height } = entry.contentRect;
-      onResize({ width, height });
+      onResizeRef.current({ width, height });
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ref, onResize]);
+  }, [ref]);
 }

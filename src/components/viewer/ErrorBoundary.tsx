@@ -8,6 +8,7 @@ interface Props {
 
 interface State {
   readonly hasError: boolean;
+  readonly error?: Error;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -16,8 +17,8 @@ export class ErrorBoundary extends Component<Props, State> {
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
@@ -29,6 +30,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 p-6 text-center">
           <p className="text-fg text-sm">Something went wrong.</p>
+          {this.state.error && (
+            <p className="text-dim max-w-md text-xs break-words">{this.state.error.message}</p>
+          )}
           <button
             type="button"
             onClick={() => window.location.reload()}

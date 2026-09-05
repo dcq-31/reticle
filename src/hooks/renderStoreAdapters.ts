@@ -51,6 +51,7 @@ export interface VolumeChange {
 export interface VolumeRenderStoreAdapter {
   getSnapshot: () => VolumeRenderSnapshot;
   subscribeVolume: (onChange: (change: VolumeChange) => void) => () => void;
+  subscribeTimeIndex: (onChange: () => void) => () => void;
   subscribeDisplay: (onChange: () => void) => () => void;
   subscribeSettings: (onChange: () => void) => () => void;
   subscribeReset: (onChange: () => void) => () => void;
@@ -122,16 +123,20 @@ export function createVolumeRenderStoreAdapter(): VolumeRenderStoreAdapter {
         resetSeq: state.vol3dResetSeq,
       };
     },
-    // One subscription, not two — a base swap moves all three keys at once,
-    // so splitting this would rebuild the texture twice.
+    // One subscription for volume identity — only fires on base-volume swap.
     subscribeVolume: (onChange) =>
       useViewerStore.subscribe(
+        (state) => state.base?.volume,
+        (next, prev) => onChange({ volumeChanged: next !== prev }),
+      ),
+    // Separate subscription for time-index + stats changes — fires on time scrub.
+    subscribeTimeIndex: (onChange) =>
+      useViewerStore.subscribe(
         (state) => ({
-          volume: state.base?.volume,
           t: state.cross.t,
           statsVersion: state.statsVersion,
         }),
-        (next, prev) => onChange({ volumeChanged: next.volume !== prev.volume }),
+        onChange,
         { equalityFn: shallowEq },
       ),
     subscribeDisplay: (onChange) =>

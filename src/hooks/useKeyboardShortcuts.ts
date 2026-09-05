@@ -28,12 +28,12 @@ export function useKeyboardShortcuts(): void {
     const onKeyDown = (e: KeyboardEvent): void => {
       // Must precede the space handler, or typing a space in an input arms pan.
       if (isEditable(e.target)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === " ") {
         keyState.space = true;
         // Don't preventDefault here — buttons still need Space to activate.
         return;
       }
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const store = useViewerStore.getState();
       const k = e.key;
       if (k === "ArrowUp" || k === "ArrowDown") {
@@ -90,6 +90,7 @@ export function useKeyboardShortcuts(): void {
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
     return () => {
+      keyState.space = false;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);

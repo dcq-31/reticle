@@ -73,6 +73,7 @@ export function TimeScrubber(): React.ReactElement | null {
       <Row className="!mb-0">
         <button
           type="button"
+          aria-label={playing ? "Pause playback" : "Start playback"}
           onClick={() => setWantsToPlay((p) => !p)}
           className="bg-surface-2 border-line-bright hover:border-line-bright cursor-pointer rounded border px-2.5 py-1.5 text-[11px] transition-colors hover:bg-[#18222c]"
         >

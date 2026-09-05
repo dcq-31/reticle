@@ -6,7 +6,7 @@ import { fmt } from "@/lib/utils/fmt";
 import { useActiveLayer, useActiveLayerStats, useViewerStore } from "@/store";
 
 export function IntensityWindow(): React.ReactElement | null {
-const layer = useActiveLayer();
+  const layer = useActiveLayer();
   const stats = useActiveLayerStats();
   if (!layer) return null;
   const win = layer.display.win;
