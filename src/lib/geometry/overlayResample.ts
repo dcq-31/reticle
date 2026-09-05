@@ -14,11 +14,15 @@ import type { Volume } from "@/lib/imaging/types";
  * Output is row-major (`out[r*4 + c]`). Falls back to identity when the
  * overlay's affine is singular (shouldn't happen in well-formed NIfTI).
  */
-export function worldToOverlayMatrix(base: Volume, overlay: Volume): Float32Array {
+export function worldToOverlayMatrix(
+  base: Volume,
+  overlay: Volume,
+  out?: Float32Array,
+): Float32Array {
   const W = worldToBaseVoxelMatrix(base);
   const baseTimesW = mul4x4(base.affine, W);
   const overlayInv = invertAffine(overlay.affine);
-  return mul4x4(overlayInv, baseTimesW);
+  return mul4x4(overlayInv, baseTimesW, out);
 }
 
 /**
@@ -37,19 +41,19 @@ export function worldToBaseVoxelMatrix(base: Volume): Float32Array {
   return out;
 }
 
-/** Row-major 4x4 matrix multiply; allocates a new Float32Array. */
-export function mul4x4(a: Float32Array, b: Float32Array): Float32Array {
-  const out = new Float32Array(16);
+/** Row-major 4x4 matrix multiply. */
+export function mul4x4(a: Float32Array, b: Float32Array, out?: Float32Array): Float32Array {
+  const result = out ?? new Float32Array(16);
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
-      out[r * 4 + c] =
+      result[r * 4 + c] =
         a[r * 4 + 0]! * b[0 * 4 + c]! +
         a[r * 4 + 1]! * b[1 * 4 + c]! +
         a[r * 4 + 2]! * b[2 * 4 + c]! +
         a[r * 4 + 3]! * b[3 * 4 + c]!;
     }
   }
-  return out;
+  return result;
 }
 
 /**

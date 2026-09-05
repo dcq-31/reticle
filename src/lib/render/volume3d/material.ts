@@ -104,7 +104,10 @@ export function createVolumeMaterial(initialLut: Uint8Array): VolumeMaterialBund
 /** Replace LUT pixel data in-place; cheaper than recreating the texture. */
 export function updateLutTexture(lutTexture: DataTexture, lutBytes: Uint8Array): void {
   const rgba = lutBytesToRgba(lutBytes);
-  const dst = lutTexture.image.data as Uint8Array;
+  const dst = lutTexture.image.data;
+  if (!(dst instanceof Uint8Array)) {
+    throw new Error("LUT texture data is not Uint8Array");
+  }
   dst.set(rgba);
   lutTexture.needsUpdate = true;
 }
