@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
+import { devtools, subscribeWithSelector } from "zustand/middleware";
 
 import { createLayoutSlice, type LayoutSlice } from "@/store/layoutSlice";
 import { createUiSlice, type UiSlice } from "@/store/uiSlice";
@@ -15,12 +15,15 @@ import type { Layer, LayerId } from "@/store/types";
 export type ViewerStore = VolumeSlice & LayoutSlice & UiSlice & Volume3dSlice;
 
 export const useViewerStore = create<ViewerStore>()(
-  subscribeWithSelector((set, get) => ({
-    ...createVolumeSlice(set, get),
-    ...createLayoutSlice(set),
-    ...createUiSlice(set),
-    ...createVolume3dSlice(set),
-  })),
+  devtools(
+    subscribeWithSelector((set, get) => ({
+      ...createVolumeSlice(set, get),
+      ...createLayoutSlice(set),
+      ...createUiSlice(set),
+      ...createVolume3dSlice(set),
+    })),
+    { name: "reticle-viewer" },
+  ),
 );
 
 export {
