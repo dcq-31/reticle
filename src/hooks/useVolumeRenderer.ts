@@ -7,7 +7,6 @@ import {
   type Data3DTexture,
   PerspectiveCamera,
   Scene,
-  Vector3,
   WebGLRenderer,
 } from "three";
 
@@ -18,17 +17,15 @@ import {
   type VolumeMaterialBundle,
 } from "@/lib/render/volume3d/material";
 import {
+  attachOrbitInteraction,
+  renderVolumeFrame,
+} from "@/lib/render/volume3d/orbitInteraction";
+import {
   createOrbitState,
-  ORBIT_PHI_MAX,
-  ORBIT_PHI_MIN,
-  ORBIT_RADIUS_MAX,
-  ORBIT_RADIUS_MIN,
-  placeCameraOnOrbit,
   resetOrbit,
   type OrbitState,
 } from "@/lib/render/volume3d/orbit";
 import { buildVolumeTexture } from "@/lib/render/volume3d/texture";
-import { clamp } from "@/lib/utils/clamp";
 import { MAX_DPR } from "@/lib/utils/constants";
 import { FrameScheduler } from "@/lib/utils/raf";
 
@@ -39,24 +36,10 @@ export interface VolumeRendererHandle {
   setCanvasSize: (width: number, height: number) => void;
 }
 
-/** Step-count multiplier while user is dragging/zooming (saves frame time). */
-const INTERACTION_STEPS_FACTOR = 0.5;
-/** ms of idleness before we rerender with the full step count. */
-const INTERACTION_IDLE_MS = 80;
-const WHEEL_IDLE_MS = 160;
-type PointerKind = "mouse" | "pen" | "touch";
-
 /**
  * Drives the Three.js raycaster lifecycle: renderer/scene/material setup,
  * 3D texture builds on volume/time change, uniform updates on window/lut/
  * vol3d-setting change, orbit interaction, and RAF coalescing.
- *
- * Owned imperative refs (mirroring `useSliceRenderer`'s pattern):
- *  - WebGLRenderer + Scene + PerspectiveCamera
- *  - VolumeMaterialBundle (mesh + material + lut texture)
- *  - Current Data3DTexture (replaced on volume/time change)
- *  - OrbitState (mutated by pointer/wheel handlers)
- *  - Interaction flag for step-count downscale
  */
 export function useVolumeRenderer(
   canvasRef: RefObject<HTMLCanvasElement | null>,
@@ -76,7 +59,6 @@ export function useVolumeRenderer(
   const schedRef = useRef<FrameScheduler | null>(null);
   const idleTimerRef = useRef<number | null>(null);
 
-  /** Push current store window/lut into uniforms; ask for a frame. */
   const syncDisplay = useCallback(() => {
     const bundle = bundleRef.current;
     if (!bundle) return;
@@ -88,7 +70,6 @@ export function useVolumeRenderer(
     schedRef.current?.request();
   }, [storeAdapter]);
 
-  /** Push current store vol3d settings into uniforms; ask for a frame. */
   const syncSettings = useCallback(() => {
     const bundle = bundleRef.current;
     if (!bundle) return;
@@ -105,7 +86,6 @@ export function useVolumeRenderer(
     schedRef.current?.request();
   }, [storeAdapter]);
 
-  /** Build a 3D texture for the current base volume at the current time. */
   const rebuildTexture = useCallback(() => {
     const bundle = bundleRef.current;
     if (!bundle) return;
@@ -137,7 +117,6 @@ export function useVolumeRenderer(
     }
   }, [storeAdapter, syncDisplay, syncSettings]);
 
-  /** Render one frame; lowers step count if mid-interaction, then restores. */
   const renderFrame = useCallback(() => {
     const renderer = rendererRef.current;
     const scene = sceneRef.current;
@@ -145,22 +124,12 @@ export function useVolumeRenderer(
     const bundle = bundleRef.current;
     if (!renderer || !scene || !camera || !bundle || !tex3dRef.current) return;
 
-    const fullSteps = bundle.uniforms.uSteps.value;
-    if (interactingRef.current) {
-      bundle.uniforms.uSteps.value = Math.max(48, Math.round(fullSteps * INTERACTION_STEPS_FACTOR));
-    }
-    placeCameraOnOrbit(camera, orbitRef.current);
-    bundle.uniforms.uCam.value.copy(camera.position);
-    renderer.render(scene, camera);
-
-    if (interactingRef.current) {
-      bundle.uniforms.uSteps.value = fullSteps;
-      if (idleTimerRef.current !== null) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = window.setTimeout(() => {
-        interactingRef.current = false;
-        schedRef.current?.request();
-      }, INTERACTION_IDLE_MS);
-    }
+    renderVolumeFrame(
+      { orbit: orbitRef.current, camera, sched: schedRef.current, interacting: interactingRef, idleTimer: idleTimerRef },
+      renderer,
+      scene,
+      bundle,
+    );
   }, []);
 
   // Mount: create WebGL2 renderer + scene + material.
@@ -233,237 +202,16 @@ export function useVolumeRenderer(
     const canvas = canvasRef.current;
     if (!canvas || failed) return;
 
-    type PointerInfo = { x: number; y: number; type: PointerKind };
-    let mode: "rot" | "pan" | null = null;
-    let pinchActive = false;
-    let lx = 0;
-    let ly = 0;
-    let touchStartRadius = orbitRef.current.radius;
-    let touchStartTarget = orbitRef.current.target.clone();
-    let touchStartDistance = 1;
-    let touchStartCenterX = 0;
-    let touchStartCenterY = 0;
-    const pointers = new Map<number, PointerInfo>();
-    const capturedPointers = new Set<number>();
-    const previousTouches = new Map<number, { x: number; y: number }>();
-
-    const releasePointer = (pointerId: number): void => {
-      if (!capturedPointers.has(pointerId)) return;
-      capturedPointers.delete(pointerId);
-      try {
-        canvas.releasePointerCapture(pointerId);
-      } catch {
-        // Pointer capture is an optimization: cleanup must not crash if it is already gone.
-      }
-    };
-
-    const syncPointer = (e: PointerEvent): void => {
-      pointers.set(e.pointerId, {
-        x: e.clientX,
-        y: e.clientY,
-        type: e.pointerType as PointerKind,
-      });
-    };
-
-    const removePointer = (e: PointerEvent): void => {
-      pointers.delete(e.pointerId);
-      previousTouches.delete(e.pointerId);
-    };
-
-    const touchPoints = (): readonly PointerInfo[] =>
-      Array.from(pointers.values())
-        .filter((p) => p.type === "touch")
-        .slice(0, 2);
-
-    const touchGesture = (
-      points: readonly PointerInfo[],
-    ): {
-      readonly centerX: number;
-      readonly centerY: number;
-      readonly distance: number;
-    } | null => {
-      const [a, b] = points;
-      if (!a || !b) return null;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      return {
-        centerX: (a.x + b.x) / 2,
-        centerY: (a.y + b.y) / 2,
-        distance: Math.max(1, Math.hypot(dx, dy)),
-      };
-    };
-
-    const beginPinch = (): void => {
-      const gesture = touchGesture(touchPoints());
-      if (!gesture) return;
-      pinchActive = true;
-      mode = "pan";
-      touchStartRadius = orbitRef.current.radius;
-      touchStartTarget = orbitRef.current.target.clone();
-      touchStartDistance = gesture.distance;
-      touchStartCenterX = gesture.centerX;
-      touchStartCenterY = gesture.centerY;
-    };
-
-    const onPointerDown = (e: PointerEvent): void => {
-      syncPointer(e);
-      try {
-        canvas.setPointerCapture(e.pointerId);
-        capturedPointers.add(e.pointerId);
-      } catch {
-        // Synthetic or already-cancelled pointers can make capture fail.
-      }
-      interactingRef.current = true;
-      canvas.classList.add("dragging");
-
-      if (e.pointerType === "touch") {
-        previousTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (touchPoints().length >= 2) {
-          beginPinch();
-        } else {
-          mode = "rot";
-          lx = e.clientX;
-          ly = e.clientY;
-        }
-        return;
-      }
-
-      const isPan = e.button === 1 || e.shiftKey || e.button === 2;
-      mode = isPan ? "pan" : "rot";
-      lx = e.clientX;
-      ly = e.clientY;
-    };
-
-    const onPointerMove = (e: PointerEvent): void => {
-      syncPointer(e);
-      const orbit = orbitRef.current;
-
-      if (e.pointerType === "touch") {
-        if (touchPoints().length >= 2) {
-          if (!pinchActive) beginPinch();
-          const gesture = touchGesture(touchPoints());
-          if (!gesture) return;
-          const camera = cameraRef.current;
-          if (!camera) return;
-          orbit.radius = clamp(
-            touchStartRadius * (touchStartDistance / gesture.distance),
-            ORBIT_RADIUS_MIN,
-            ORBIT_RADIUS_MAX,
-          );
-          const right = new Vector3();
-          const up = new Vector3();
-          camera.matrixWorld.extractBasis(right, up, new Vector3());
-          const k = orbit.radius * 0.0016;
-          orbit.target.copy(touchStartTarget);
-          orbit.target
-            .addScaledVector(right, -(gesture.centerX - touchStartCenterX) * k)
-            .addScaledVector(up, (gesture.centerY - touchStartCenterY) * k);
-          schedRef.current?.request();
-          return;
-        }
-
-        pinchActive = false;
-        mode = "rot";
-        const prev = previousTouches.get(e.pointerId) ?? { x: e.clientX, y: e.clientY };
-        const dx = e.clientX - prev.x;
-        const dy = e.clientY - prev.y;
-        previousTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        orbit.theta -= dx * 0.01;
-        orbit.phi = clamp(orbit.phi - dy * 0.01, ORBIT_PHI_MIN, ORBIT_PHI_MAX);
-        schedRef.current?.request();
-        return;
-      }
-
-      if (!mode) return;
-      const dx = e.clientX - lx;
-      const dy = e.clientY - ly;
-      lx = e.clientX;
-      ly = e.clientY;
-      if (mode === "rot") {
-        orbit.theta -= dx * 0.01;
-        orbit.phi = clamp(orbit.phi - dy * 0.01, ORBIT_PHI_MIN, ORBIT_PHI_MAX);
-      } else {
-        const camera = cameraRef.current;
-        if (camera) {
-          const right = new Vector3();
-          const up = new Vector3();
-          camera.matrixWorld.extractBasis(right, up, new Vector3());
-          const k = orbit.radius * 0.0016;
-          orbit.target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
-        }
-      }
-      schedRef.current?.request();
-    };
-
-    const endPointer = (e: PointerEvent): void => {
-      removePointer(e);
-      releasePointer(e.pointerId);
-      if (e.pointerType === "touch" && touchPoints().length < 2) {
-        pinchActive = false;
-      }
-      mode = null;
-      interactingRef.current = false;
-      canvas.classList.remove("dragging");
-      schedRef.current?.request();
-    };
-
-    const onWheel = (e: WheelEvent): void => {
-      e.preventDefault();
-      const orbit = orbitRef.current;
-      orbit.radius = clamp(
-        orbit.radius * (e.deltaY > 0 ? 1.1 : 0.9),
-        ORBIT_RADIUS_MIN,
-        ORBIT_RADIUS_MAX,
-      );
-      interactingRef.current = true;
-      schedRef.current?.request();
-      if (idleTimerRef.current !== null) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = window.setTimeout(() => {
-        interactingRef.current = false;
-        schedRef.current?.request();
-      }, WHEEL_IDLE_MS);
-    };
-
-    const onContextMenu = (e: MouseEvent): void => {
-      e.preventDefault();
-    };
-
-    const onPointerCancel = (e: PointerEvent): void => {
-      removePointer(e);
-      releasePointer(e.pointerId);
-      if (e.pointerType === "touch" && touchPoints().length < 2) {
-        pinchActive = false;
-      }
-      mode = null;
-      interactingRef.current = false;
-      canvas.classList.remove("dragging");
-      schedRef.current?.request();
-    };
-
-    canvas.addEventListener("pointerdown", onPointerDown);
-    canvas.addEventListener("pointermove", onPointerMove);
-    canvas.addEventListener("pointerup", endPointer);
-    canvas.addEventListener("pointercancel", onPointerCancel);
-    canvas.addEventListener("contextmenu", onContextMenu);
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      for (const pointerId of capturedPointers) releasePointer(pointerId);
-      if (idleTimerRef.current !== null) {
-        clearTimeout(idleTimerRef.current);
-        idleTimerRef.current = null;
-      }
-      interactingRef.current = false;
-      canvas.classList.remove("dragging");
-      canvas.removeEventListener("pointerdown", onPointerDown);
-      canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerup", endPointer);
-      canvas.removeEventListener("pointercancel", onPointerCancel);
-      canvas.removeEventListener("contextmenu", onContextMenu);
-      canvas.removeEventListener("wheel", onWheel);
-    };
+    return attachOrbitInteraction(canvas, {
+      orbit: orbitRef.current,
+      camera: cameraRef.current,
+      sched: schedRef.current,
+      interacting: interactingRef,
+      idleTimer: idleTimerRef,
+    });
   }, [canvasRef, failed]);
 
-  // Store subscriptions: each fires a targeted re-sync.
+  // Store subscriptions.
   useEffect(() => {
     const unsubVolume = storeAdapter.subscribeVolume(({ volumeChanged }) => {
       rebuildTexture();
