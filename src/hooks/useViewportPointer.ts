@@ -4,15 +4,15 @@ import { useEffect, type RefObject } from "react";
 
 import { type Plane } from "@/lib/geometry/planes";
 import { canvasToWorldVoxel, viewLayout, type ViewportState } from "@/lib/render/viewLayout";
-import { capturePointer } from "@/lib/utils/pointerCapture";
+import { capturePointer, releasePointer } from "@/lib/utils/pointerCapture";
 import { clamp } from "@/lib/utils/clamp";
 import { ZOOM_MIN, ZOOM_MAX } from "@/lib/utils/constants";
+import { touchGesture, type TrackedPointer, type PointerKind } from "@/lib/utils/touchGesture";
 import { keyState } from "@/lib/utils/keyState";
 import { useViewerStore } from "@/store";
 import { selectActiveLayer } from "@/store/volumeSlice";
 
 type Mode = "crosshair" | "window" | "pan" | null;
-type PointerKind = "mouse" | "pen" | "touch";
 
 const ZOOM_STEP = 1.12;
 
@@ -39,7 +39,7 @@ export function useViewportPointer(
     if (!canvas) return;
 
     let mode: Mode = null;
-    const pointers = new Map<number, { x: number; y: number; type: PointerKind }>();
+    const pointers = new Map<number, TrackedPointer>();
     let startX = 0;
     let startY = 0;
     let startWinLevel = 0;
@@ -82,37 +82,6 @@ export function useViewportPointer(
       pointers.delete(e.pointerId);
     };
 
-    const releasePointer = (pointerId: number): void => {
-      if (!capturedPointers.has(pointerId)) return;
-      capturedPointers.delete(pointerId);
-      try {
-        canvas.releasePointerCapture(pointerId);
-      } catch {
-        // Capture is best-effort; cleanup should not fail if the browser already released it.
-      }
-    };
-
-    const touchPointers = (): readonly { x: number; y: number }[] =>
-      Array.from(pointers.values())
-        .filter((p) => p.type === "touch")
-        .slice(0, 2);
-
-    const touchGesture = (): {
-      readonly centerX: number;
-      readonly centerY: number;
-      readonly distance: number;
-    } | null => {
-      const [a, b] = touchPointers();
-      if (!a || !b) return null;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      return {
-        centerX: (a.x + b.x) / 2,
-        centerY: (a.y + b.y) / 2,
-        distance: Math.max(1, Math.hypot(dx, dy)),
-      };
-    };
-
     const updateCrosshairFrom = (e: PointerEvent): void => {
       const layout = layoutNow();
       if (!layout) return;
@@ -148,7 +117,7 @@ export function useViewportPointer(
       startX = e.clientX;
       startY = e.clientY;
       if (e.pointerType === "touch") {
-        const gesture = touchGesture();
+        const gesture = touchGesture(pointers);
         if (gesture) {
           mode = "pan";
           touchStartZoom = viewportRef.current.zoom;
@@ -217,7 +186,7 @@ export function useViewportPointer(
       if (!base) return;
 
       if (e.pointerType === "touch") {
-        const gesture = touchGesture();
+        const gesture = touchGesture(pointers);
         if (gesture) {
           mode = "pan";
           const before = touchStartLayout ?? layoutNow();
@@ -318,14 +287,14 @@ export function useViewportPointer(
 
     const onPointerUp = (e: PointerEvent): void => {
       removePointer(e);
-      releasePointer(e.pointerId);
+      releasePointer(canvas, e.pointerId);
       if (pointers.size < 2) touchStartLayout = null;
       endMode();
     };
 
     const onPointerCancel = (e: PointerEvent): void => {
       removePointer(e);
-      releasePointer(e.pointerId);
+      releasePointer(canvas, e.pointerId);
       if (pointers.size < 2) touchStartLayout = null;
       endMode();
     };
@@ -340,7 +309,7 @@ export function useViewportPointer(
     canvas.addEventListener("wheel", onWheel, { passive: false });
 
     return () => {
-      for (const pointerId of capturedPointers) releasePointer(pointerId);
+      for (const pointerId of capturedPointers) releasePointer(canvas, pointerId);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);

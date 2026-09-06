@@ -20,3 +20,19 @@ export function capturePointer(element: Element, pointerId: number): boolean {
     return false;
   }
 }
+
+/**
+ * Safely release a captured pointer, swallowing errors if it was already
+ * released by the browser. Intended to be called in pointerup / pointercancel
+ * handlers and during cleanup.
+ */
+export function releasePointer(
+  element: HTMLCanvasElement,
+  pointerId: number,
+): void {
+  try {
+    element.releasePointerCapture(pointerId);
+  } catch {
+    // Capture is best-effort; cleanup should not fail if the browser already released it.
+  }
+}
