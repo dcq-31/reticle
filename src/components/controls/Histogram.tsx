@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { fmt } from "@/lib/utils/fmt";
+import { MAX_DPR } from "@/lib/utils/constants";
 import {
   useActiveLayer,
   useActiveLayerStats,
@@ -13,7 +14,6 @@ import {
 
 const CANVAS_W = 600;
 const CANVAS_H = 96;
-const MAX_DPR = 2;
 /** Pixel tolerance for picking up a draggable window edge. */
 const EDGE_HIT_PX = 8;
 

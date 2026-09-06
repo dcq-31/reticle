@@ -4,10 +4,11 @@ import { useEffect, useRef } from "react";
 
 import { LayerList } from "@/components/controls/LayerList";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { DESKTOP_BP } from "@/lib/utils/constants";
 import { useViewerStore } from "@/store";
 
 export function MobileLayersSheet(): React.ReactElement | null {
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isDesktop = useMediaQuery(DESKTOP_BP);
   const open = useViewerStore((s) => s.mobileLayersOpen);
   const setOpen = useViewerStore((s) => s.setMobileLayersOpen);
   const overlayCount = useViewerStore((s) => s.overlays.length);

@@ -29,6 +29,7 @@ import {
 } from "@/lib/render/volume3d/orbit";
 import { buildVolumeTexture } from "@/lib/render/volume3d/texture";
 import { clamp } from "@/lib/utils/clamp";
+import { MAX_DPR } from "@/lib/utils/constants";
 import { FrameScheduler } from "@/lib/utils/raf";
 
 export interface VolumeRendererHandle {
@@ -38,7 +39,6 @@ export interface VolumeRendererHandle {
   setCanvasSize: (width: number, height: number) => void;
 }
 
-const MAX_DPR = 2;
 /** Step-count multiplier while user is dragging/zooming (saves frame time). */
 const INTERACTION_STEPS_FACTOR = 0.5;
 /** ms of idleness before we rerender with the full step count. */

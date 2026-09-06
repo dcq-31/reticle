@@ -2,10 +2,10 @@
 
 import { loadWithAdapter, resolveAdapter } from "@/lib/imaging/loader";
 import type { Volume, VolumeSource } from "@/lib/imaging/types";
+import type { ViewerJobStatus } from "@/store/types";
 import { loadVolumesInWorker } from "@/workers/niftiLoader";
 
 export type LoadKind = "base" | "overlay";
-export type ViewerJobStatus = "idle" | "loading" | "success" | "error" | "stale" | "aborted";
 
 export interface LoadedVolume {
   readonly volume: Volume;

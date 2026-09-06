@@ -1,4 +1,4 @@
-import type { Plane, Convention } from "@/lib/geometry/planes";
+import type { Convention, Crosshair, Plane } from "@/lib/geometry/planes";
 import type { DerivedVolumeCacheKey } from "@/lib/imaging/derived";
 import type { Volume } from "@/lib/imaging/types";
 import type { ColormapName } from "@/lib/render/colormap";
@@ -7,6 +7,7 @@ export type Interp = "sharp" | "smooth";
 export type LayoutMode = "grid" | "single" | "volume";
 export type LayerId = string;
 export type LayerRole = "base" | "overlay";
+export type ViewerJobStatus = "idle" | "loading" | "success" | "error" | "stale" | "aborted";
 
 export interface WindowLevel {
   readonly level: number;
@@ -37,13 +38,6 @@ export interface ViewerDocument {
   readonly layerRoles: Readonly<Record<LayerId, LayerRole>>;
 }
 
-export interface Crosshair {
-  readonly r: number;
-  readonly a: number;
-  readonly s: number;
-  readonly t: number;
-}
-
 export interface ViewportStateShared {
   readonly cross: Crosshair;
   readonly convention: Convention;
@@ -51,4 +45,4 @@ export interface ViewportStateShared {
   readonly crosshairVisible: boolean;
 }
 
-export type { Plane, Convention, Volume, ColormapName, DerivedVolumeCacheKey };
+export type { Plane, Convention, Crosshair, Volume, ColormapName, DerivedVolumeCacheKey };

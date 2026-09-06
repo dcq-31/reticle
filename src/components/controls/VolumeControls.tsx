@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip, Hint, PanelGroup, Row } from "@/components/controls/primitives";
+import { Chip, Hint, PanelGroup, Row, SegmentedControl } from "@/components/controls/primitives";
 import { useViewerStore, type VolumeMode } from "@/store";
 
 const MODE_OPTIONS: ReadonlyArray<{ value: VolumeMode; label: string }> = [
@@ -30,10 +30,11 @@ export function VolumeControls(): React.ReactElement {
   return (
     <PanelGroup title="3D Rendering">
       <Row className="mb-2">
-        <SegFull
+        <SegmentedControl
           label="Render mode"
           value={mode}
           options={MODE_OPTIONS}
+          fullWidth
           onChange={(v) => useViewerStore.getState().setVolumeMode(v)}
         />
       </Row>
@@ -70,10 +71,11 @@ export function VolumeControls(): React.ReactElement {
         </Row>
       )}
       <Row className="mb-2">
-        <SegFull
+        <SegmentedControl
           label="Step quality"
           value={String(quality)}
           options={QUALITY_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+          fullWidth
           onChange={(v) => useViewerStore.getState().setVolumeQuality(Number(v))}
         />
       </Row>
@@ -88,47 +90,5 @@ export function VolumeControls(): React.ReactElement {
         depth. Surface renders the first voxel above the threshold.
       </Hint>
     </PanelGroup>
-  );
-}
-
-interface SegFullProps<T extends string> {
-  readonly label: string;
-  readonly value: T;
-  readonly options: ReadonlyArray<{ value: T; label: string }>;
-  readonly onChange: (value: T) => void;
-}
-
-function SegFull<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: SegFullProps<T>): React.ReactElement {
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className="border-line-bright flex w-full overflow-hidden rounded border"
-    >
-      {options.map((opt) => {
-        const on = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(opt.value)}
-            className={
-              "border-line flex-1 cursor-pointer px-2 py-1.5 text-center text-[11px] transition-colors not-first:border-l first:border-l-0 " +
-              (on
-                ? "bg-accent font-semibold text-[#04201c]"
-                : "bg-surface-2 text-dim hover:bg-[#18222c]")
-            }
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }

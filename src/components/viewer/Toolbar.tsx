@@ -5,10 +5,12 @@ import { useRef } from "react";
 import { useFileOpen } from "@/hooks/useFileOpen";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { makeDemoVolume } from "@/lib/imaging/nifti/demo";
+import { DESKTOP_BP } from "@/lib/utils/constants";
+import { SegmentedControl } from "@/components/controls/primitives";
 import { useViewerStore } from "@/store";
 
 export function Toolbar(): React.ReactElement {
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isDesktop = useMediaQuery(DESKTOP_BP);
   const layout = useViewerStore((s) => s.layout);
   const convention = useViewerStore((s) => s.convention);
   const interp = useViewerStore((s) => s.interp);
@@ -64,7 +66,7 @@ export function Toolbar(): React.ReactElement {
         {status}
       </div>
       <div className="order-3 flex w-full flex-wrap items-center gap-2 sm:order-none sm:w-auto">
-        <SegControl
+        <SegmentedControl
           label="Convention"
           value={convention}
           options={[
@@ -73,7 +75,7 @@ export function Toolbar(): React.ReactElement {
           ]}
           onChange={(v) => useViewerStore.getState().setConvention(v)}
         />
-        <SegControl
+        <SegmentedControl
           label="Interpolation"
           value={interp}
           options={[
@@ -83,7 +85,7 @@ export function Toolbar(): React.ReactElement {
           onChange={(v) => useViewerStore.getState().setInterp(v)}
         />
         {isDesktop ? (
-          <SegControl
+          <SegmentedControl
             label="Layout"
             value={layout}
             options={[
@@ -217,51 +219,4 @@ function Brand(): React.ReactElement {
 
 function Divider(): React.ReactElement {
   return <div className="bg-line h-6 w-px" />;
-}
-
-interface SegOption<T extends string> {
-  readonly value: T;
-  readonly label: string;
-}
-
-interface SegControlProps<T extends string> {
-  readonly label: string;
-  readonly value: T;
-  readonly options: readonly SegOption<T>[];
-  readonly onChange: (value: T) => void;
-}
-
-function SegControl<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: SegControlProps<T>): React.ReactElement {
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className="border-line-bright flex w-full overflow-hidden rounded border sm:inline-flex sm:w-auto"
-    >
-      {options.map((opt) => {
-        const on = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(opt.value)}
-            className={
-              "border-line flex-1 cursor-pointer px-2.5 py-1.5 text-[11px] transition-colors not-first:border-l first:border-l-0 sm:flex-none " +
-              (on
-                ? "bg-accent font-semibold text-[#04201c]"
-                : "bg-surface-2 text-dim hover:bg-[#18222c]")
-            }
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
 }

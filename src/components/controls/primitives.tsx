@@ -83,3 +83,56 @@ interface HintProps {
 export function Hint({ children }: HintProps): React.ReactElement {
   return <p className="text-faint mt-1 text-[10.5px] leading-relaxed">{children}</p>;
 }
+
+interface SegOption<T extends string> {
+  readonly value: T;
+  readonly label: string;
+}
+
+interface SegmentedControlProps<T extends string> {
+  readonly label: string;
+  readonly value: T;
+  readonly options: readonly SegOption<T>[];
+  readonly onChange: (value: T) => void;
+  /** When true, the control fills its container width (default: auto on desktop). */
+  readonly fullWidth?: boolean;
+}
+
+export function SegmentedControl<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  fullWidth,
+}: SegmentedControlProps<T>): React.ReactElement {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className={
+        "border-line-bright flex overflow-hidden rounded border" +
+        (fullWidth ? " w-full" : " w-full sm:inline-flex sm:w-auto")
+      }
+    >
+      {options.map((opt) => {
+        const on = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(opt.value)}
+            className={
+              "border-line flex-1 cursor-pointer px-2.5 py-1.5 text-center text-[11px] transition-colors not-first:border-l first:border-l-0 sm:flex-none " +
+              (on
+                ? "bg-accent font-semibold text-[#04201c]"
+                : "bg-surface-2 text-dim hover:bg-[#18222c]")
+            }
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

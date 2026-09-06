@@ -7,6 +7,7 @@ import { planeSizes, sliceCoord, type Plane } from "@/lib/geometry/planes";
 import { renderSliceToImageData } from "@/lib/render/slice";
 import { viewLayout, type ViewportState } from "@/lib/render/viewLayout";
 import { FrameScheduler } from "@/lib/utils/raf";
+import { MAX_DPR } from "@/lib/utils/constants";
 
 export interface SliceRendererHandle {
   /**
@@ -17,8 +18,6 @@ export interface SliceRendererHandle {
   /** Notify the renderer that the canvas CSS size changed. */
   setCanvasSize: (width: number, height: number) => void;
 }
-
-const MAX_DPR = 2;
 
 /**
  * Drives one 2D plane's offscreen-build + compositor pipeline.

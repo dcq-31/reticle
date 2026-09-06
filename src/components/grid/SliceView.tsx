@@ -7,26 +7,18 @@ import { useSliceRenderStoreAdapter } from "@/hooks/renderStoreAdapters";
 import { useSliceRenderer } from "@/hooks/useSliceRenderer";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useViewportPointer } from "@/hooks/useViewportPointer";
-import { planeSizes, sliceCoord, type Plane } from "@/lib/geometry/planes";
+import { planeSizes, sliceCoord, type Plane, PLANE_LABEL } from "@/lib/geometry/planes";
 import type { ViewportState } from "@/lib/render/viewLayout";
 import { clamp } from "@/lib/utils/clamp";
+import { ZOOM_MIN, ZOOM_MAX, DESKTOP_BP } from "@/lib/utils/constants";
 import { useViewerStore } from "@/store";
-
-const ZOOM_MIN = 0.2;
-const ZOOM_MAX = 12;
 
 interface SliceViewProps {
   readonly plane: Plane;
 }
 
-const PLANE_LABEL: Record<Plane, string> = {
-  axial: "Axial",
-  coronal: "Coronal",
-  sagittal: "Sagittal",
-};
-
 export function SliceView({ plane }: SliceViewProps): React.ReactElement {
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isDesktop = useMediaQuery(DESKTOP_BP);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewportRef = useRef<ViewportState>({ zoom: 1, panX: 0, panY: 0 });

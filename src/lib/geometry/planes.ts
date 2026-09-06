@@ -6,6 +6,13 @@ export type Convention = "neuro" | "radio";
 
 export const PLANES = ["axial", "coronal", "sagittal"] as const satisfies readonly Plane[];
 
+/** Human-readable labels for each plane. */
+export const PLANE_LABEL: Record<Plane, string> = {
+  axial: "Axial",
+  coronal: "Coronal",
+  sagittal: "Sagittal",
+};
+
 export interface PlaneGeometry {
   /** World axis displayed on the canvas horizontal. */
   readonly hAxis: WorldAxis;

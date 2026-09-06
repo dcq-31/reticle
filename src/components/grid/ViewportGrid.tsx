@@ -4,18 +4,14 @@ import { ControlPanel } from "@/components/controls/ControlPanel";
 import { SliceView } from "@/components/grid/SliceView";
 import { VolumeView } from "@/components/grid/VolumeView";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import type { Plane } from "@/lib/geometry/planes";
+import { type Plane, PLANE_LABEL } from "@/lib/geometry/planes";
+import { DESKTOP_BP } from "@/lib/utils/constants";
 import { useViewerStore } from "@/store";
 
 const ALL_PLANES: readonly Plane[] = ["axial", "coronal", "sagittal"];
-const PLANE_LABEL: Record<Plane, string> = {
-  axial: "Axial",
-  coronal: "Coronal",
-  sagittal: "Sagittal",
-};
 
 export function ViewportGrid(): React.ReactElement {
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isDesktop = useMediaQuery(DESKTOP_BP);
   const layout = useViewerStore((s) => s.layout);
   const maxView = useViewerStore((s) => s.maxView);
 

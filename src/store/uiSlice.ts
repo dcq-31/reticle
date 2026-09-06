@@ -1,5 +1,4 @@
-import type { Plane } from "@/store/types";
-import type { ViewerJobStatus } from "@/services/viewerLoadService";
+import type { Plane, ViewerJobStatus } from "@/store/types";
 
 export type ToastKind = "info" | "error";
 

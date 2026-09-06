@@ -6,6 +6,7 @@ import { type Plane } from "@/lib/geometry/planes";
 import { canvasToWorldVoxel, viewLayout, type ViewportState } from "@/lib/render/viewLayout";
 import { capturePointer } from "@/lib/utils/pointerCapture";
 import { clamp } from "@/lib/utils/clamp";
+import { ZOOM_MIN, ZOOM_MAX } from "@/lib/utils/constants";
 import { keyState } from "@/lib/utils/keyState";
 import { useViewerStore } from "@/store";
 import { selectActiveLayer } from "@/store/volumeSlice";
@@ -13,8 +14,6 @@ import { selectActiveLayer } from "@/store/volumeSlice";
 type Mode = "crosshair" | "window" | "pan" | null;
 type PointerKind = "mouse" | "pen" | "touch";
 
-const ZOOM_MIN = 0.2;
-const ZOOM_MAX = 12;
 const ZOOM_STEP = 1.12;
 
 /**
