@@ -18,11 +18,10 @@ function snapshot(query: string): boolean {
  * Client-safe media query hook.
  */
 export function useMediaQuery(query: string, defaultValue = false): boolean {
-  const subscribeToQuery = useCallback((onChange: () => void) => subscribe(query, onChange), [query]);
-  const getSnapshot = useCallback(() => snapshot(query), [query]);
-  return useSyncExternalStore(
-    subscribeToQuery,
-    getSnapshot,
-    () => defaultValue,
+  const subscribeToQuery = useCallback(
+    (onChange: () => void) => subscribe(query, onChange),
+    [query],
   );
+  const getSnapshot = useCallback(() => snapshot(query), [query]);
+  return useSyncExternalStore(subscribeToQuery, getSnapshot, () => defaultValue);
 }

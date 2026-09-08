@@ -5,21 +5,17 @@ import {
 } from "@/lib/imaging/derived";
 import { getCachedLut } from "@/lib/render/lutCache";
 
-import type {
-  Crosshair,
-  DisplayProps,
-  Layer,
-  LayerId,
-  LayerRole,
-  Volume,
-} from "@/store/types";
+import type { Crosshair, DisplayProps, Layer, LayerId, LayerRole, Volume } from "@/store/types";
 
 export interface VolumeState {
   derivedCache: DerivedVolumeCache;
   statsVersion: number;
 }
 
-export function emptyDocument(): { readonly layers: readonly Layer[]; readonly layerRoles: Readonly<Record<LayerId, LayerRole>> } {
+export function emptyDocument(): {
+  readonly layers: readonly Layer[];
+  readonly layerRoles: Readonly<Record<LayerId, LayerRole>>;
+} {
   return { layers: [], layerRoles: {} };
 }
 
@@ -74,7 +70,10 @@ export const clampToVolume = (cross: Crosshair, base: Layer | null): Crosshair =
   };
 };
 
-export function rebuildCompatLayers(document: { readonly layers: readonly Layer[]; readonly layerRoles: Readonly<Record<LayerId, LayerRole>> }): {
+export function rebuildCompatLayers(document: {
+  readonly layers: readonly Layer[];
+  readonly layerRoles: Readonly<Record<LayerId, LayerRole>>;
+}): {
   readonly base: Layer | null;
   readonly overlays: readonly Layer[];
 } {
@@ -160,7 +159,13 @@ export function buildLayer(
 }
 
 export function mutateActiveDisplay(
-  state: { activeLayerId: LayerId | null; document: { readonly layers: readonly Layer[]; readonly layerRoles: Readonly<Record<LayerId, LayerRole>> } },
+  state: {
+    activeLayerId: LayerId | null;
+    document: {
+      readonly layers: readonly Layer[];
+      readonly layerRoles: Readonly<Record<LayerId, LayerRole>>;
+    };
+  },
   mut: (d: DisplayProps) => DisplayProps,
 ): { document: typeof state.document; base: Layer | null; overlays: readonly Layer[] } {
   const id = state.activeLayerId;
@@ -169,7 +174,12 @@ export function mutateActiveDisplay(
 }
 
 export function mutateLayerDisplay(
-  state: { document: { readonly layers: readonly Layer[]; readonly layerRoles: Readonly<Record<LayerId, LayerRole>> } },
+  state: {
+    document: {
+      readonly layers: readonly Layer[];
+      readonly layerRoles: Readonly<Record<LayerId, LayerRole>>;
+    };
+  },
   layerId: LayerId,
   mut: (d: DisplayProps) => DisplayProps,
 ): { document: typeof state.document; base: Layer | null; overlays: readonly Layer[] } {

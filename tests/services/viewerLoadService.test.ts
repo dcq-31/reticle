@@ -87,7 +87,10 @@ describe("ViewerLoadService", () => {
       execution: "main",
     };
     const file = new File([new Uint8Array([1, 2, 3])], "brain.nii");
-    mocks.resolveAdapterMock.mockResolvedValue({ adapter: inlineAdapter, head: new Uint8Array([1]) });
+    mocks.resolveAdapterMock.mockResolvedValue({
+      adapter: inlineAdapter,
+      head: new Uint8Array([1]),
+    });
     mocks.loadWithAdapterMock.mockResolvedValue([makeVolume("vol-main")]);
 
     const service = new ViewerLoadService();

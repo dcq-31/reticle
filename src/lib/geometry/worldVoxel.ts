@@ -37,9 +37,12 @@ export interface ProbeResult {
  */
 export function probe(vol: Volume, r: number, a: number, s: number, t = 0): ProbeResult {
   if (
-    r < 0 || r >= vol.dimsWorld[0] ||
-    a < 0 || a >= vol.dimsWorld[1] ||
-    s < 0 || s >= vol.dimsWorld[2]
+    r < 0 ||
+    r >= vol.dimsWorld[0] ||
+    a < 0 ||
+    a >= vol.dimsWorld[1] ||
+    s < 0 ||
+    s >= vol.dimsWorld[2]
   ) {
     throw new RangeError(`probe coordinates out of range: (${r}, ${a}, ${s})`);
   }

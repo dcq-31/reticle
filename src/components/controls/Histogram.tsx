@@ -141,7 +141,7 @@ function drawHistogram(
   stats: ReturnType<typeof useActiveLayerStats>,
 ): void {
   if (!canvas) return;
-   syncCanvasBackingStore(canvas);
+  syncCanvasBackingStore(canvas);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const W = canvas.width;

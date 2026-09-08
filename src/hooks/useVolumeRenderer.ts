@@ -2,13 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { VolumeRenderStoreAdapter } from "@/hooks/renderStoreAdapters";
-import {
-  BoxGeometry,
-  type Data3DTexture,
-  PerspectiveCamera,
-  Scene,
-  WebGLRenderer,
-} from "three";
+import { BoxGeometry, type Data3DTexture, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
 import { buildLUT } from "@/lib/render/colormap";
 import {
@@ -16,15 +10,8 @@ import {
   updateLutTexture,
   type VolumeMaterialBundle,
 } from "@/lib/render/volume3d/material";
-import {
-  attachOrbitInteraction,
-  renderVolumeFrame,
-} from "@/lib/render/volume3d/orbitInteraction";
-import {
-  createOrbitState,
-  resetOrbit,
-  type OrbitState,
-} from "@/lib/render/volume3d/orbit";
+import { attachOrbitInteraction, renderVolumeFrame } from "@/lib/render/volume3d/orbitInteraction";
+import { createOrbitState, resetOrbit, type OrbitState } from "@/lib/render/volume3d/orbit";
 import { buildVolumeTexture } from "@/lib/render/volume3d/texture";
 import { MAX_DPR } from "@/lib/utils/constants";
 import { FrameScheduler } from "@/lib/utils/raf";
@@ -125,7 +112,13 @@ export function useVolumeRenderer(
     if (!renderer || !scene || !camera || !bundle || !tex3dRef.current) return;
 
     renderVolumeFrame(
-      { orbit: orbitRef.current, camera, sched: schedRef.current, interacting: interactingRef, idleTimer: idleTimerRef },
+      {
+        orbit: orbitRef.current,
+        camera,
+        sched: schedRef.current,
+        interacting: interactingRef,
+        idleTimer: idleTimerRef,
+      },
       renderer,
       scene,
       bundle,

@@ -33,9 +33,7 @@ export interface TouchGesture {
 }
 
 /** Compute the center point and distance of a two-finger touch gesture. */
-export function touchGesture(
-  map: ReadonlyMap<number, TrackedPointer>,
-): TouchGesture | null {
+export function touchGesture(map: ReadonlyMap<number, TrackedPointer>): TouchGesture | null {
   const [a, b] = touchPointers(map);
   if (!a || !b) return null;
   const dx = b.x - a.x;

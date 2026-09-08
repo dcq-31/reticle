@@ -26,10 +26,7 @@ export function capturePointer(element: Element, pointerId: number): boolean {
  * released by the browser. Intended to be called in pointerup / pointercancel
  * handlers and during cleanup.
  */
-export function releasePointer(
-  element: HTMLCanvasElement,
-  pointerId: number,
-): void {
+export function releasePointer(element: HTMLCanvasElement, pointerId: number): void {
   try {
     element.releasePointerCapture(pointerId);
   } catch {

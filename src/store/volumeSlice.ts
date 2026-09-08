@@ -6,14 +6,7 @@ import {
 import { getCachedLut } from "@/lib/render/lutCache";
 import type { ColormapName } from "@/lib/render/colormap";
 
-import type {
-  Crosshair,
-  Layer,
-  LayerId,
-  LayerRole,
-  Volume,
-  WindowLevel,
-} from "@/store/types";
+import type { Crosshair, Layer, LayerId, LayerRole, Volume, WindowLevel } from "@/store/types";
 
 import {
   buildLayer,
@@ -32,7 +25,10 @@ import { selectActiveLayer, selectLayerById } from "@/store/volumeSelectors";
 export { selectActiveLayer, selectLayerById, selectLayerStats } from "@/store/volumeSelectors";
 
 export interface VolumeState {
-  document: { readonly layers: readonly Layer[]; readonly layerRoles: Readonly<Record<LayerId, LayerRole>> };
+  document: {
+    readonly layers: readonly Layer[];
+    readonly layerRoles: Readonly<Record<LayerId, LayerRole>>;
+  };
   base: Layer | null;
   overlays: readonly Layer[];
   activeLayerId: LayerId | null;

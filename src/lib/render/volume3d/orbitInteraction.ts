@@ -36,10 +36,7 @@ export interface OrbitRefs {
  * Attach pointer + wheel orbit interaction to a canvas element.
  * Returns a cleanup function that removes all listeners.
  */
-export function attachOrbitInteraction(
-  canvas: HTMLCanvasElement,
-  refs: OrbitRefs,
-): () => void {
+export function attachOrbitInteraction(canvas: HTMLCanvasElement, refs: OrbitRefs): () => void {
   let mode: "rot" | "pan" | null = null;
   let pinchActive = false;
   let lx = 0;

@@ -4,10 +4,7 @@ import {
   type getCachedVolumeStats,
 } from "@/lib/imaging/derived";
 
-import type {
-  Layer,
-  LayerId,
-} from "@/store/types";
+import type { Layer, LayerId } from "@/store/types";
 import { clampTimeIndex } from "@/store/volumeHelpers";
 
 interface VolumeStateLike {
@@ -16,7 +13,10 @@ interface VolumeStateLike {
   readonly overlays: readonly Layer[];
   readonly cross: { readonly t: number };
   readonly derivedCache: DerivedVolumeCache;
-  readonly document: { readonly layers: readonly Layer[]; readonly layerRoles: Readonly<Record<LayerId, string>> };
+  readonly document: {
+    readonly layers: readonly Layer[];
+    readonly layerRoles: Readonly<Record<LayerId, string>>;
+  };
 }
 
 /**
