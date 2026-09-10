@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 import { Chip, PanelGroup } from "@/components/controls/primitives";
 import { buildLUT, COLORMAP_NAMES, LUT_SIZE, type ColormapName } from "@/lib/render/colormap";
@@ -21,7 +21,7 @@ function gradientFor(name: ColormapName): string {
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
-export function ColormapPicker(): React.ReactElement | null {
+export const ColormapPicker = memo(function ColormapPicker(): React.ReactElement | null {
   const layer = useActiveLayer();
   const cmap = layer?.display.cmap;
   const invert = layer?.display.invert ?? false;
@@ -82,4 +82,4 @@ export function ColormapPicker(): React.ReactElement | null {
       </div>
     </PanelGroup>
   );
-}
+});
