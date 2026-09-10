@@ -16,6 +16,11 @@ import type { FrameScheduler } from "@/lib/utils/raf";
 
 type PointerKind = "mouse" | "pen" | "touch";
 
+/** Reusable scratch vectors to avoid per-frame allocations during pan. */
+const _right = new Vector3();
+const _up = new Vector3();
+const _forward = new Vector3();
+
 /** Step-count multiplier while user is dragging/zooming (saves frame time). */
 const INTERACTION_STEPS_FACTOR = 0.5;
 /** ms of idleness before we rerender with the full step count. */
@@ -131,14 +136,12 @@ export function attachOrbitInteraction(canvas: HTMLCanvasElement, refs: OrbitRef
           ORBIT_RADIUS_MIN,
           ORBIT_RADIUS_MAX,
         );
-        const right = new Vector3();
-        const up = new Vector3();
-        camera.matrixWorld.extractBasis(right, up, new Vector3());
+        camera.matrixWorld.extractBasis(_right, _up, _forward);
         const k = orbit.radius * 0.0016;
         orbit.target.copy(touchStartTarget);
         orbit.target
-          .addScaledVector(right, -(gesture.centerX - touchStartCenterX) * k)
-          .addScaledVector(up, (gesture.centerY - touchStartCenterY) * k);
+          .addScaledVector(_right, -(gesture.centerX - touchStartCenterX) * k)
+          .addScaledVector(_up, (gesture.centerY - touchStartCenterY) * k);
         refs.sched?.request();
         return;
       }
@@ -164,13 +167,11 @@ export function attachOrbitInteraction(canvas: HTMLCanvasElement, refs: OrbitRef
       orbit.theta -= dx * 0.01;
       orbit.phi = clamp(orbit.phi - dy * 0.01, ORBIT_PHI_MIN, ORBIT_PHI_MAX);
     } else {
-      const camera = refs.camera;
-      if (camera) {
-        const right = new Vector3();
-        const up = new Vector3();
-        camera.matrixWorld.extractBasis(right, up, new Vector3());
-        const k = orbit.radius * 0.0016;
-        orbit.target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
+        const camera = refs.camera;
+        if (camera) {
+          camera.matrixWorld.extractBasis(_right, _up, _forward);
+          const k = orbit.radius * 0.0016;
+          orbit.target.addScaledVector(_right, -dx * k).addScaledVector(_up, dy * k);
       }
     }
     refs.sched?.request();
