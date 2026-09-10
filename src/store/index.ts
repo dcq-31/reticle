@@ -33,7 +33,17 @@ export const useViewerStore = create<ViewerStore>()(
         }),
       },
     ),
-    { name: "reticle-viewer" },
+    {
+      name: "reticle-viewer",
+      serialize: {
+        replacer: (_key: string, value: unknown) => {
+          if (ArrayBuffer.isView(value)) {
+            return `${(value as unknown as { constructor: { name: string }; length: number }).constructor.name}(${(value as unknown as { length: number }).length})`;
+          }
+          return value;
+        },
+      },
+    },
   ),
 );
 
