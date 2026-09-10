@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FormatAdapter, Volume } from "@/lib/imaging/types";
+import type { LoadedVolume } from "@/services/viewerLoadService";
 import { ViewerLoadService } from "@/services/viewerLoadService";
 
 const mocks = vi.hoisted(() => ({
@@ -68,7 +69,7 @@ describe("ViewerLoadService", () => {
 
   it("routes worker-backed adapters through the worker path", async () => {
     mocks.resolveAdapterMock.mockResolvedValue({ adapter, head: new Uint8Array([1, 2, 3]) });
-    mocks.loadVolumesInWorkerMock.mockResolvedValue([makeVolume("vol-worker")]);
+    mocks.loadVolumesInWorkerMock.mockResolvedValue([{ volume: makeVolume("vol-worker") }]);
 
     const service = new ViewerLoadService();
     const file = new File([new Uint8Array([1, 2, 3])], "brain.nii");
@@ -106,10 +107,10 @@ describe("ViewerLoadService", () => {
   it("marks older results as stale when a newer request wins", async () => {
     mocks.resolveAdapterMock.mockResolvedValue({ adapter, head: new Uint8Array([1, 2, 3]) });
 
-    const first = deferred<readonly Volume[]>();
+    const first = deferred<readonly LoadedVolume[]>();
     mocks.loadVolumesInWorkerMock
       .mockImplementationOnce(() => first.promise)
-      .mockResolvedValueOnce([makeVolume("vol-latest")]);
+      .mockResolvedValueOnce([{ volume: makeVolume("vol-latest") }]);
 
     const service = new ViewerLoadService();
     const firstPromise = service.load({
@@ -122,7 +123,7 @@ describe("ViewerLoadService", () => {
       kind: "base",
     });
 
-    first.resolve([makeVolume("vol-stale")]);
+    first.resolve([{ volume: makeVolume("vol-stale") }]);
 
     const [firstResult, secondResult] = await Promise.all([firstPromise, secondPromise]);
     expect(firstResult.status).toBe("stale");
