@@ -1,7 +1,7 @@
 "use client";
 
 import { loadWithAdapter, resolveAdapter } from "@/lib/imaging/loader";
-import type { Volume, VolumeSource } from "@/lib/imaging/types";
+import type { Volume, VolumeSource, VolumeStats } from "@/lib/imaging/types";
 import type { ViewerJobStatus } from "@/store/types";
 import { loadVolumesInWorker } from "@/workers/niftiLoader";
 
@@ -9,6 +9,7 @@ export type LoadKind = "base" | "overlay";
 
 export interface LoadedVolume {
   readonly volume: Volume;
+  readonly stats?: VolumeStats;
 }
 
 export interface LoadRequest {
@@ -40,10 +41,12 @@ export class ViewerLoadService {
     try {
       const { adapter } = await resolveAdapter(request.file);
       controller.signal.throwIfAborted?.();
-      const volumes =
+      const loaded =
         adapter.execution === "worker"
           ? await loadVolumesInWorker(request.file, adapter.id, controller.signal)
-          : await loadWithAdapter(request.file, adapter, controller.signal);
+          : (await loadWithAdapter(request.file, adapter, controller.signal)).map((volume) => ({
+              volume,
+            } as LoadedVolume));
 
       if (requestId !== this.activeRequestId) {
         return {
@@ -60,7 +63,7 @@ export class ViewerLoadService {
         requestId,
         kind: request.kind,
         sourceFormat: adapter.id,
-        volumes: volumes.map((volume) => ({ volume })),
+        volumes: loaded,
         warnings: [],
         status: "success",
       };

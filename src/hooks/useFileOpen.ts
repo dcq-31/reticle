@@ -44,16 +44,18 @@ export function useFileOpen(): FileOpenHandle {
         store.setJobStatus(result.status);
         return;
       }
-      const volume = result.volumes[0]?.volume;
+      const loaded = result.volumes[0];
+      const volume = loaded?.volume;
+      const stats = loaded?.stats;
       if (!volume) {
         throw new Error(`No volume returned for ${file.name}`);
       }
       if (result.kind === "base") {
-        store.setBase(volume);
+        store.setBase(volume, stats);
         store.setStatus(volumeStatus(volume));
         store.showToast(`Loaded ${volume.name}`);
       } else {
-        store.addOverlay(volume);
+        store.addOverlay(volume, stats);
         const base = useViewerStore.getState().base;
         store.setStatus(volumeStatus(base?.volume ?? volume));
         store.showToast(`Added overlay ${volume.name}`);

@@ -6,7 +6,7 @@ import {
 import { getCachedLut } from "@/lib/render/lutCache";
 import type { ColormapName } from "@/lib/render/colormap";
 
-import type { Crosshair, Layer, LayerId, LayerRole, Volume, WindowLevel } from "@/store/types";
+import type { Crosshair, Layer, LayerId, LayerRole, Volume, VolumeStats, WindowLevel } from "@/store/types";
 
 import {
   buildLayer,
@@ -41,8 +41,8 @@ export interface VolumeState {
 export type WindowPreset = "auto" | "full" | "robust";
 
 export interface VolumeActions {
-  setBase: (volume: Volume) => void;
-  addOverlay: (volume: Volume) => void;
+  setBase: (volume: Volume, stats?: VolumeStats) => void;
+  addOverlay: (volume: Volume, stats?: VolumeStats) => void;
   removeLayer: (layerId: LayerId) => void;
   setActiveLayer: (layerId: LayerId) => void;
   setLayerVisibility: (layerId: LayerId, visible: boolean) => void;
@@ -84,9 +84,9 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
     derivedCache: { statsByKey: {} },
     statsVersion: 0,
 
-    setBase: (volume) => {
+    setBase: (volume, stats) => {
       const state = get();
-      const built = buildLayer(volume, "base", state.derivedCache, state.statsVersion, 0);
+      const built = buildLayer(volume, "base", state.derivedCache, state.statsVersion, 0, stats);
       const baseKey = makeDerivedVolumeCacheKey(built.layer.id, 0);
       const nextCache: DerivedVolumeCache = {
         statsByKey: {
@@ -107,7 +107,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
       });
     },
 
-    addOverlay: (volume) => {
+    addOverlay: (volume, stats) => {
       const state = get();
       if (state.document.layers.some((l) => l.id === volume.id)) return;
       const built = buildLayer(
@@ -116,6 +116,7 @@ export function createVolumeSlice(set: SetFn, get: GetFn): VolumeSlice {
         state.derivedCache,
         state.statsVersion,
         state.cross.t,
+        stats,
       );
       const document = {
         layers: [...state.document.layers, built.layer],

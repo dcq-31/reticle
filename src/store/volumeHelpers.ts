@@ -1,11 +1,12 @@
 import {
   ensureVolumeStats,
+  makeDerivedVolumeCacheKey,
   type DerivedVolumeCache,
   type getCachedVolumeStats,
 } from "@/lib/imaging/derived";
 import { getCachedLut } from "@/lib/render/lutCache";
 
-import type { Crosshair, DisplayProps, Layer, LayerId, LayerRole, Volume } from "@/store/types";
+import type { Crosshair, DisplayProps, Layer, LayerId, LayerRole, Volume, VolumeStats } from "@/store/types";
 
 export interface VolumeState {
   derivedCache: DerivedVolumeCache;
@@ -107,6 +108,22 @@ export function ensureStatsForVolumeState(
   };
 }
 
+function ensurePrecomputedStats(
+  cache: DerivedVolumeCache,
+  volume: Volume,
+  timeIndex: number,
+  stats: VolumeStats,
+): DerivedVolumeCache {
+  const key = makeDerivedVolumeCacheKey(volume.id, clampTimeIndex(volume, timeIndex));
+  if (cache.statsByKey[key]) return cache;
+  return {
+    statsByKey: {
+      ...cache.statsByKey,
+      [key]: stats,
+    },
+  };
+}
+
 export function warmStatsForLayers(
   state: Pick<VolumeState, "derivedCache" | "statsVersion">,
   layers: readonly Layer[],
@@ -140,12 +157,23 @@ export function buildLayer(
   derivedCache: DerivedVolumeCache,
   statsVersion: number,
   timeIndex: number,
+  precomputedStats?: VolumeStats,
 ): {
   readonly layer: Layer;
   readonly derivedCache: DerivedVolumeCache;
   readonly statsVersion: number;
 } {
-  const ensured = ensureStatsForVolumeState({ derivedCache, statsVersion }, volume, timeIndex);
+  let ensured: { derivedCache: DerivedVolumeCache; stats: VolumeStats; statsVersion: number };
+  if (precomputedStats) {
+    const cache = ensurePrecomputedStats(derivedCache, volume, timeIndex, precomputedStats);
+    ensured = {
+      derivedCache: cache,
+      stats: precomputedStats,
+      statsVersion: statsVersion + (cache !== derivedCache ? 1 : 0),
+    };
+  } else {
+    ensured = ensureStatsForVolumeState({ derivedCache, statsVersion }, volume, timeIndex);
+  }
   return {
     layer: {
       id: volume.id,

@@ -1,6 +1,6 @@
 import type { Convention, Crosshair, Plane } from "@/lib/geometry/planes";
 import type { DerivedVolumeCacheKey } from "@/lib/imaging/derived";
-import type { Volume } from "@/lib/imaging/types";
+import type { Volume, VolumeStats } from "@/lib/imaging/types";
 import type { ColormapName } from "@/lib/render/colormap";
 
 export type Interp = "sharp" | "smooth";
@@ -45,4 +45,4 @@ export interface ViewportStateShared {
   readonly crosshairVisible: boolean;
 }
 
-export type { Plane, Convention, Crosshair, Volume, ColormapName, DerivedVolumeCacheKey };
+export type { Plane, Convention, Crosshair, Volume, VolumeStats, ColormapName, DerivedVolumeCacheKey };

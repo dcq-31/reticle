@@ -2,9 +2,9 @@
 
 import * as Comlink from "comlink";
 
-import type { Volume, VolumeSource } from "@/lib/imaging/types";
+import type { VolumeSource } from "@/lib/imaging/types";
 
-import type { VolumeLoaderWorkerApi } from "@/workers/niftiLoader.worker";
+import type { LoadedVolume, VolumeLoaderWorkerApi } from "@/workers/niftiLoader.worker";
 
 /**
  * Lazily-instantiated singleton Comlink proxy for the NIfTI parsing worker.
@@ -28,14 +28,14 @@ function getProxy(): Comlink.Remote<VolumeLoaderWorkerApi> {
 /**
  * Read the file on the main thread (FileReader-equivalent via
  * `File.arrayBuffer()`), then transfer the resulting buffer to the worker
- * where the actual decode + stats happen. The returned Volume comes back
- * with its data + histogram buffers transferred zero-copy.
+ * where the actual decode + stats happen. The returned volume and stats
+ * come back with their data + histogram buffers transferred zero-copy.
  */
 export async function loadVolumesInWorker(
   file: File,
   format: VolumeSource,
   signal?: AbortSignal,
-): Promise<readonly Volume[]> {
+): Promise<readonly LoadedVolume[]> {
   signal?.throwIfAborted?.();
   const buffer = await file.arrayBuffer();
   signal?.throwIfAborted?.();
