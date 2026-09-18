@@ -16,11 +16,7 @@ import type { Volume, VolumeSource, VolumeStats } from "@/lib/imaging/types";
  */
 
 export interface VolumeLoaderWorkerApi {
-  parseVolumes(
-    buffer: ArrayBuffer,
-    name: string,
-    format: VolumeSource,
-  ): readonly LoadedVolume[];
+  parseVolumes(buffer: ArrayBuffer, name: string, format: VolumeSource): readonly LoadedVolume[];
 }
 
 export interface LoadedVolume {

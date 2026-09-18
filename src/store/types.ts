@@ -45,4 +45,12 @@ export interface ViewportStateShared {
   readonly crosshairVisible: boolean;
 }
 
-export type { Plane, Convention, Crosshair, Volume, VolumeStats, ColormapName, DerivedVolumeCacheKey };
+export type {
+  Plane,
+  Convention,
+  Crosshair,
+  Volume,
+  VolumeStats,
+  ColormapName,
+  DerivedVolumeCacheKey,
+};

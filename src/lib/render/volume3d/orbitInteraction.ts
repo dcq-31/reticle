@@ -170,11 +170,11 @@ export function attachOrbitInteraction(canvas: HTMLCanvasElement, refs: OrbitRef
       orbit.theta -= dx * 0.01;
       orbit.phi = clamp(orbit.phi - dy * 0.01, ORBIT_PHI_MIN, ORBIT_PHI_MAX);
     } else {
-        const camera = refs.camera;
-        if (camera) {
-          camera.matrixWorld.extractBasis(_right, _up, _forward);
-          const k = orbit.radius * 0.0016;
-          orbit.target.addScaledVector(_right, -dx * k).addScaledVector(_up, dy * k);
+      const camera = refs.camera;
+      if (camera) {
+        camera.matrixWorld.extractBasis(_right, _up, _forward);
+        const k = orbit.radius * 0.0016;
+        orbit.target.addScaledVector(_right, -dx * k).addScaledVector(_up, dy * k);
       }
     }
     refs.sched?.request();

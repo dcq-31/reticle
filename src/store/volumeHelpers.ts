@@ -6,7 +6,15 @@ import {
 } from "@/lib/imaging/derived";
 import { getCachedLut } from "@/lib/render/lutCache";
 
-import type { Crosshair, DisplayProps, Layer, LayerId, LayerRole, Volume, VolumeStats } from "@/store/types";
+import type {
+  Crosshair,
+  DisplayProps,
+  Layer,
+  LayerId,
+  LayerRole,
+  Volume,
+  VolumeStats,
+} from "@/store/types";
 
 export interface VolumeState {
   derivedCache: DerivedVolumeCache;

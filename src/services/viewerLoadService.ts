@@ -44,9 +44,12 @@ export class ViewerLoadService {
       const loaded =
         adapter.execution === "worker"
           ? await loadVolumesInWorker(request.file, adapter.id, controller.signal)
-          : (await loadWithAdapter(request.file, adapter, controller.signal)).map((volume) => ({
-              volume,
-            } as LoadedVolume));
+          : (await loadWithAdapter(request.file, adapter, controller.signal)).map(
+              (volume) =>
+                ({
+                  volume,
+                }) as LoadedVolume,
+            );
 
       if (requestId !== this.activeRequestId) {
         return {

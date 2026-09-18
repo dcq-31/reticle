@@ -124,9 +124,7 @@ export function useVolumeRenderer(
     if (wantLowRes !== lowResRef.current) {
       const { width, height, dpr } = sizeRef.current;
       lowResRef.current = wantLowRes;
-      renderer.setPixelRatio(
-        wantLowRes ? Math.max(1, dpr * INTERACTION_RES_FACTOR) : dpr,
-      );
+      renderer.setPixelRatio(wantLowRes ? Math.max(1, dpr * INTERACTION_RES_FACTOR) : dpr);
       renderer.setSize(width, height, false);
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
@@ -259,9 +257,7 @@ export function useVolumeRenderer(
     if (!renderer || !camera) return;
     const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     sizeRef.current = { width, height, dpr };
-    renderer.setPixelRatio(
-      lowResRef.current ? Math.max(1, dpr * INTERACTION_RES_FACTOR) : dpr,
-    );
+    renderer.setPixelRatio(lowResRef.current ? Math.max(1, dpr * INTERACTION_RES_FACTOR) : dpr);
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();

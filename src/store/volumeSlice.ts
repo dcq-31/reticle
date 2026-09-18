@@ -6,7 +6,15 @@ import {
 import { getCachedLut } from "@/lib/render/lutCache";
 import type { ColormapName } from "@/lib/render/colormap";
 
-import type { Crosshair, Layer, LayerId, LayerRole, Volume, VolumeStats, WindowLevel } from "@/store/types";
+import type {
+  Crosshair,
+  Layer,
+  LayerId,
+  LayerRole,
+  Volume,
+  VolumeStats,
+  WindowLevel,
+} from "@/store/types";
 
 import {
   buildLayer,
