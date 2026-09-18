@@ -95,6 +95,9 @@ export function attachOrbitInteraction(canvas: HTMLCanvasElement, refs: OrbitRef
   };
 
   const onPointerDown = (e: PointerEvent): void => {
+    // Suppress native selection/drag highlighting while orbiting; the view
+    // uses pointer capture and custom handling, so no default is needed.
+    if (e.cancelable) e.preventDefault();
     syncPointer(e);
     try {
       canvas.setPointerCapture(e.pointerId);

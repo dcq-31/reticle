@@ -40,13 +40,19 @@ export function VolumeView(): React.ReactElement {
       ref={containerRef}
       role="region"
       aria-label="3D volume view"
-      className="group relative h-full min-h-0 w-full min-w-0 overflow-hidden"
+      className="group relative h-full min-h-0 w-full min-w-0 overflow-hidden select-none"
       style={{
         background: "radial-gradient(ellipse at 50% 38%, #0b1218 0%, #05080b 78%)",
         cursor: "grab",
+        WebkitTapHighlightColor: "transparent",
       }}
     >
-      <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" />
+      <canvas
+        ref={canvasRef}
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
+        className="absolute inset-0 block h-full w-full touch-none outline-none"
+      />
       <div className="text-accent border-line pointer-events-none absolute top-2 left-2 rounded border bg-black/55 px-1.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase select-none">
         3D · Volume
         <span className="text-dim ml-1.5">{MODE_LABEL[mode]}</span>
