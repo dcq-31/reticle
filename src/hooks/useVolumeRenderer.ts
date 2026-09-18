@@ -16,6 +16,11 @@ import { buildVolumeTexture } from "@/lib/render/volume3d/texture";
 import { MAX_DPR } from "@/lib/utils/constants";
 import { FrameScheduler } from "@/lib/utils/raf";
 
+/** Drawing-buffer scale applied while the user is dragging/zooming. */
+const INTERACTION_RES_FACTOR = 0.55;
+/** Hard cap on raymarch steps; bounds worst-case fragment cost on large volumes. */
+const MAX_VOLUME_STEPS = 512;
+
 export interface VolumeRendererHandle {
   /** True when WebGL2 is unavailable; component should render a fallback. */
   readonly failed: boolean;
@@ -41,6 +46,7 @@ export function useVolumeRenderer(
   const tex3dRef = useRef<Data3DTexture | null>(null);
   const orbitRef = useRef<OrbitState>(createOrbitState());
   const interactingRef = useRef(false);
+  const lowResRef = useRef(false);
   const sizeRef = useRef({ width: 1, height: 1, dpr: 1 });
   const dimsRef = useRef<[number, number, number]>([1, 1, 1]);
   const schedRef = useRef<FrameScheduler | null>(null);
@@ -67,7 +73,7 @@ export function useVolumeRenderer(
     bundle.uniforms.uShade.value = s.shade ? 1 : 0;
     const baseAxis = Math.max(...dimsRef.current);
     bundle.uniforms.uSteps.value = Math.min(
-      1024,
+      MAX_VOLUME_STEPS,
       Math.max(48, Math.round(baseAxis * 1.7 * s.quality)),
     );
     schedRef.current?.request();
@@ -110,6 +116,21 @@ export function useVolumeRenderer(
     const camera = cameraRef.current;
     const bundle = bundleRef.current;
     if (!renderer || !scene || !camera || !bundle || !tex3dRef.current) return;
+
+    // Drop drawing-buffer resolution for the duration of the interaction
+    // streak; the idle timer in renderVolumeFrame flips `interacting` off and
+    // requests a full-resolution re-render.
+    const wantLowRes = interactingRef.current;
+    if (wantLowRes !== lowResRef.current) {
+      const { width, height, dpr } = sizeRef.current;
+      lowResRef.current = wantLowRes;
+      renderer.setPixelRatio(
+        wantLowRes ? Math.max(1, dpr * INTERACTION_RES_FACTOR) : dpr,
+      );
+      renderer.setSize(width, height, false);
+      camera.aspect = width / Math.max(1, height);
+      camera.updateProjectionMatrix();
+    }
 
     renderVolumeFrame(
       {
@@ -178,6 +199,8 @@ export function useVolumeRenderer(
         clearTimeout(idleTimerRef.current);
         idleTimerRef.current = null;
       }
+      interactingRef.current = false;
+      lowResRef.current = false;
       tex3dRef.current?.dispose();
       tex3dRef.current = null;
       bundle?.dispose();
@@ -236,7 +259,9 @@ export function useVolumeRenderer(
     if (!renderer || !camera) return;
     const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     sizeRef.current = { width, height, dpr };
-    renderer.setPixelRatio(dpr);
+    renderer.setPixelRatio(
+      lowResRef.current ? Math.max(1, dpr * INTERACTION_RES_FACTOR) : dpr,
+    );
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();

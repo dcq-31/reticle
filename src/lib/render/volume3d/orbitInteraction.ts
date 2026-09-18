@@ -6,6 +6,7 @@ import {
   ORBIT_PHI_MIN,
   ORBIT_RADIUS_MAX,
   ORBIT_RADIUS_MIN,
+  placeCameraOnOrbit,
   type OrbitState,
 } from "@/lib/render/volume3d/orbit";
 import type { VolumeMaterialBundle } from "@/lib/render/volume3d/material";
@@ -22,9 +23,11 @@ const _up = new Vector3();
 const _forward = new Vector3();
 
 /** Step-count multiplier while user is dragging/zooming (saves frame time). */
-const INTERACTION_STEPS_FACTOR = 0.5;
+const INTERACTION_STEPS_FACTOR = 0.35;
+/** Hard cap on raymarch steps while interacting, regardless of quality setting. */
+const INTERACTION_MAX_STEPS = 128;
 /** ms of idleness before we rerender with the full step count. */
-const INTERACTION_IDLE_MS = 80;
+const INTERACTION_IDLE_MS = 140;
 const WHEEL_IDLE_MS = 160;
 
 export interface OrbitRefs {
@@ -247,7 +250,9 @@ export function attachOrbitInteraction(canvas: HTMLCanvasElement, refs: OrbitRef
 }
 
 /**
- * Render one volume frame, lowering step count during active interaction.
+ * Render one volume frame, lowering step count and disabling shading during
+ * active interaction. The camera is placed from orbit state every frame so
+ * drag/zoom/pan mutations actually move the view.
  */
 export function renderVolumeFrame(
   refs: OrbitRefs,
@@ -257,15 +262,23 @@ export function renderVolumeFrame(
 ): void {
   if (!refs.camera) return;
 
+  placeCameraOnOrbit(refs.camera, refs.orbit);
+
   const fullSteps = bundle.uniforms.uSteps.value;
+  const fullShade = bundle.uniforms.uShade.value;
   if (refs.interacting.current) {
-    bundle.uniforms.uSteps.value = Math.max(48, Math.round(fullSteps * INTERACTION_STEPS_FACTOR));
+    bundle.uniforms.uSteps.value = Math.min(
+      INTERACTION_MAX_STEPS,
+      Math.max(48, Math.round(fullSteps * INTERACTION_STEPS_FACTOR)),
+    );
+    bundle.uniforms.uShade.value = 0;
   }
   bundle.uniforms.uCam.value.copy(refs.camera.position);
   renderer.render(scene, refs.camera);
 
   if (refs.interacting.current) {
     bundle.uniforms.uSteps.value = fullSteps;
+    bundle.uniforms.uShade.value = fullShade;
     if (refs.idleTimer.current !== null) clearTimeout(refs.idleTimer.current);
     refs.idleTimer.current = window.setTimeout(() => {
       refs.interacting.current = false;
