@@ -33,7 +33,7 @@ New overlays become the active layer so the intensity and colormap controls imme
 
 ### Demo volume
 
-The app auto-loads a synthetic demo volume on first mount so the viewer is usable before you load your own data. Use **Load sample brain** to restore a built-in sample later.
+The app auto-loads the bundled MNI152 sample brain on first mount so the viewer is usable before you load your own data. Use **Load sample brain** to restore it later. If the sample cannot be fetched, a synthetic phantom is used as a fallback.
 
 ## Toolbar Controls
 

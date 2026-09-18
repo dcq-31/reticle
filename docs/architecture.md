@@ -9,7 +9,7 @@ Reticle is a Next.js App Router application with a client-only viewer surface. T
 At a high level:
 
 1. `app/page.tsx` loads the viewer without SSR
-2. the viewer bootstraps a demo volume on first mount
+2. the viewer bootstraps the bundled MNI152 sample volume on first mount
 3. Zustand holds the shared viewer state
 4. a unified ingest service resolves the adapter and worker path
 5. file loading and parsing create immutable normalized volume objects
@@ -28,7 +28,7 @@ The viewer surface is composed from a few top-level pieces:
 
 The control panel is deliberately absent from the single and maximized layouts. Maximizing a plane is a distraction-free full-bleed view; display controls remain reachable by returning to the grid or 3D layout. This is intentional, not an oversight.
 
-The top-level viewer also installs global keyboard shortcuts and initializes the demo data on first mount.
+The top-level viewer also installs global keyboard shortcuts and initializes the sample data on first mount.
 
 ## State Model
 

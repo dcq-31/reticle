@@ -40,7 +40,7 @@ The main directories are:
 - `src/components/`: viewer UI components
 - `src/hooks/`: rendering, input, file-open, and resize coordination
 - `src/store/`: Zustand slices and shared state
-- `src/lib/imaging/`: format parsing, headers, volume creation, demo data
+- `src/lib/imaging/`: format parsing, headers, volume creation, sample brain loading
 - `src/lib/geometry/`: plane mapping, voxel/world math, overlay resampling
 - `src/lib/render/`: 2D slice rendering, colormaps, layout math, 3D rendering support
 - `src/workers/`: worker entrypoints and Comlink-facing APIs
@@ -52,7 +52,7 @@ The main directories are:
 The fastest loop for most changes is:
 
 1. run `pnpm dev`
-2. verify the demo volume still mounts
+2. verify the sample brain still mounts
 3. load a `.nii` or `.nii.gz` file manually if your change touches file loading or rendering
 4. run focused validation, then the broader checks
 
@@ -83,7 +83,7 @@ Use unit tests when changing math, parsing, lookup tables, or derived-data behav
 
 The Playwright smoke suite checks:
 
-- page boot and demo volume mount
+- page boot and sample brain mount
 - 2D canvas paint
 - slice stepping behavior
 - 3D layout activation

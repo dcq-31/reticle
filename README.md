@@ -7,7 +7,7 @@ This repository is currently a focused viewer prototype, not a general PACS work
 ## What Works Today
 
 - Load `.nii` and `.nii.gz` files
-- Auto-load a synthetic demo volume on first mount
+- Auto-load a bundled MNI152 sample brain on first mount
 - Replace the base volume or add overlays
 - Switch between neuro and radiological conventions
 - Toggle sharp vs smooth interpolation
@@ -19,7 +19,7 @@ This repository is currently a focused viewer prototype, not a general PACS work
 
 - NIfTI is the only supported imaging format, and only as a single self-contained `.nii` or `.nii.gz` file — detached `.hdr`/`.img` pairs are rejected
 - 3D viewing requires WebGL2 with 3D texture support
-- The app auto-loads a demo volume until you replace it with your own file
+- The app auto-loads the bundled MNI152 sample until you replace it with your own file
 - This project does not claim clinical validation
 - There is no DICOM support in the current codebase
 
@@ -58,7 +58,7 @@ pnpm build
 
 - Use **Open file** to load a base volume
 - Use **Add overlay** to stack a second volume on top of the base
-- Use **Load sample brain** to restore a built-in demo volume
+- Use **Load sample brain** to restore the bundled MNI152 sample
 - Drag and drop a NIfTI file onto the window to replace the base volume
 - Hold `Shift` while dropping to add the file as an overlay when a base volume is already loaded
 - Use the toolbar to change convention, interpolation, and layout

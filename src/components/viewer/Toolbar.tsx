@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { useFileOpen } from "@/hooks/useFileOpen";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { makeDemoVolume } from "@/lib/imaging/nifti/demo";
+import { loadSampleBrain, sampleStatus } from "@/lib/imaging/sampleBrain";
 import { DESKTOP_BP } from "@/lib/utils/constants";
 import { SegmentedControl } from "@/components/controls/primitives";
 import { useViewerStore } from "@/store";
@@ -42,12 +43,30 @@ export function Toolbar(): React.ReactElement {
 
   const onLoadDemo = (): void => {
     const store = useViewerStore.getState();
-    const vol = makeDemoVolume();
-    store.setBase(vol);
-    store.setStatus(
-      `${vol.name} · ${vol.nx}×${vol.ny}×${vol.nz} · ${vol.datatype} · ${vol.orientCode}`,
-    );
-    store.showToast("Loaded synthetic phantom");
+    if (store.loading) return;
+    store.setLoading(true);
+    store.setJobStatus("loading");
+    store.setStatus("Loading sample brain…");
+    void (async () => {
+      try {
+        const loaded = await loadSampleBrain();
+        const s = useViewerStore.getState();
+        s.setBase(loaded.volume, loaded.stats);
+        s.setStatus(sampleStatus(loaded.volume));
+        s.setJobStatus("success");
+        s.showToast(`Loaded ${loaded.volume.name}`);
+      } catch (err) {
+        console.error("[Toolbar] sample brain failed, using phantom:", err);
+        const s = useViewerStore.getState();
+        const vol = makeDemoVolume();
+        s.setBase(vol);
+        s.setStatus(sampleStatus(vol));
+        s.setJobStatus("success");
+        s.showToast("Sample brain unavailable — loaded synthetic phantom", "error");
+      } finally {
+        useViewerStore.getState().setLoading(false);
+      }
+    })();
   };
 
   return (

@@ -4,8 +4,9 @@ import type { NiftiHeader, Dim8, SRows } from "@/lib/imaging/nifti/header";
 import type { Volume } from "@/lib/imaging/types";
 
 /**
- * Build a synthetic brain phantom volume. Used as the on-mount sample and as
- * a fixture for tests that want a realistic-shaped volume without disk I/O.
+ * Build a synthetic brain phantom volume. Used as the fallback when the
+ * bundled MNI152 sample cannot be loaded, and as a fixture for tests that
+ * want a realistic-shaped volume without disk I/O.
  *
  * Geometry is deterministic; intensity has a small Math.random()-based jitter.
  * Pass `seed` for reproducible jitter.

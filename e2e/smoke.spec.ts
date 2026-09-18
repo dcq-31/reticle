@@ -5,7 +5,7 @@ import { buildNifti1Buffer } from "../tests/fixtures/nifti";
 /**
  * End-to-end smoke for Reticle:
  *   1. Page loads, no runtime errors.
- *   2. The synthetic demo phantom mounts on first paint.
+ *   2. The bundled MNI152 sample mounts on first paint.
  *   3. All three plane canvases render non-trivial pixels.
  *   4. Clicking inside one plane updates the other two (crosshair sync).
  *   5. Switching to the 3D layout paints the volume canvas.
@@ -79,10 +79,15 @@ test("viewer mounts, planes paint, crosshair sync works", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle(/Reticle/i);
 
-  // Wait for the demo phantom to mount + the three plane canvases to exist.
+  // Wait for the sample brain to mount + the three plane canvases to exist.
+  // The bundled MNI152 loads asynchronously (fetch + worker parse), so wait
+  // for the toolbar status to report a volume before asserting paint.
   await page.waitForSelector('[aria-label="Axial view"] canvas');
   await page.waitForSelector('[aria-label="Coronal view"] canvas');
   await page.waitForSelector('[aria-label="Sagittal view"] canvas');
+  await expect(page.locator("header [role=status]")).toContainText(/(mni152|phantom)/i, {
+    timeout: 30_000,
+  });
   // Give the renderer a frame to paint.
   await page.waitForTimeout(400);
 
