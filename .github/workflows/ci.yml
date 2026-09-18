@@ -20,10 +20,11 @@ jobs:
         with:
           version: 11
 
-      # The README promises Node 20+; pin the floor so a regression past it fails here.
+      # pnpm v11 requires Node 22.13+, so pin Node 22 (satisfies the
+      # README's Node 20+ floor) rather than the absolute minimum.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
