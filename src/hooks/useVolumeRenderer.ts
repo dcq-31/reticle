@@ -17,7 +17,7 @@ import { MAX_DPR } from "@/lib/utils/constants";
 import { FrameScheduler } from "@/lib/utils/raf";
 
 /** Drawing-buffer scale applied while the user is dragging/zooming. */
-const INTERACTION_RES_FACTOR = 0.55;
+const INTERACTION_RES_FACTOR = 0.5;
 /** Hard cap on raymarch steps; bounds worst-case fragment cost on large volumes. */
 const MAX_VOLUME_STEPS = 512;
 
